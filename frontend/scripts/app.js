@@ -1,0 +1,601 @@
+/* ════════════════════════════════════════════════════════════
+   AMRAVATI SARTHI — app.js  v4.0
+   Voice orb: Spline 3D embed replaces flat mic button
+════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════
+   LocationService
+════════════════════════════════════════════════════════════ */
+const LocationService = (() => {
+  const AMRAVATI_CENTRE = { lat: 20.9320, lng: 77.7523, isFallback: true };
+  let _coords = null;
+
+  const request = () => new Promise((resolve) => {
+    if (!navigator.geolocation) { _coords = AMRAVATI_CENTRE; resolve(AMRAVATI_CENTRE); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        _coords = { lat: pos.coords.latitude, lng: pos.coords.longitude, isFallback: false };
+        resolve(_coords);
+      },
+      () => { _coords = AMRAVATI_CENTRE; resolve(AMRAVATI_CENTRE); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  });
+
+  const useFallback = () => { _coords = AMRAVATI_CENTRE; };
+  const get         = () => _coords ?? AMRAVATI_CENTRE;
+  const hasReal     = () => _coords !== null && !_coords.isFallback;
+
+  return { request, useFallback, get, hasReal };
+})();
+
+
+/* ════════════════════════════════════════════════════════════
+   LangService
+════════════════════════════════════════════════════════════ */
+const LangService = (() => {
+  let _lang = "en";
+
+  const STRINGS = {
+    en: {
+      placeholder:  "Ask anything about Amravati…",
+      online:       "Online · Ready to help",
+      reconnecting: "Reconnecting…",
+      typing:       "Sarthi is thinking…",
+      welcome:      "नमस्कार! I'm Amravati Sarthi. 🙏\n\nI'm your AI-powered city guide for Amravati, Maharashtra. Ask me about government schemes, nearby hospitals, restaurants, civic services — anything at all!",
+      chips: [
+        "🏥 Hospitals near me",
+        "💊 Pharmacy near me",
+        "🏦 ATM near me",
+        "🌾 PM-KISAN scheme",
+        "👩 Ladki Bahin Yojana",
+        "🍽️ Restaurants nearby",
+        "🚨 Emergency numbers",
+        "🏛️ Government offices",
+      ],
+      micDenied:    "Microphone access was denied. Please allow it in your browser settings and try again.",
+      yourLoc:      "Your Location",
+      noResults:    "No nearby results found. Try a broader search term.",
+      toggleLabel:  "मराठी",
+      skipLoc:      "Continue without location",
+      allowLoc:     "Share My Location & Start",
+      requesting:   "Requesting location…",
+      gateDesc:     "AI-powered help for government schemes, nearby services & civic info — in Marathi & English.",
+      gateNote:     "Location is used only to find services near you and is never stored on our servers.",
+    },
+    mr: {
+      placeholder:  "अमरावतीबद्दल काहीही विचारा…",
+      online:       "ऑनलाइन · मदतीसाठी तयार",
+      reconnecting: "पुन्हा जोडत आहे…",
+      typing:       "सारथी विचार करत आहे…",
+      welcome:      "नमस्कार! मी अमरावती सारथी आहे. 🙏\n\nमी अमरावती शहराचा AI-चालित मार्गदर्शक आहे. सरकारी योजना, जवळचे रुग्णालय, रेस्टॉरंट, नागरी सेवा — काहीही विचारा!",
+      chips: [
+        "🏥 जवळचे रुग्णालय",
+        "💊 जवळची फार्मसी",
+        "🏦 जवळचे ATM",
+        "🌾 PM-KISAN योजना",
+        "👩 लाडकी बहीण योजना",
+        "🍽️ जवळचे रेस्टॉरंट",
+        "🚨 आपत्कालीन क्रमांक",
+        "🏛️ सरकारी कार्यालये",
+      ],
+      micDenied:    "मायक्रोफोन परवानगी नाकारली गेली. कृपया ब्राउझर सेटिंग्जमध्ये परवानगी द्या आणि पुन्हा प्रयत्न करा.",
+      yourLoc:      "तुमचे स्थान",
+      noResults:    "जवळपास परिणाम सापडले नाहीत. वेगळ्या शब्दात शोधा.",
+      toggleLabel:  "ENG",
+      skipLoc:      "स्थानाशिवाय सुरू करा",
+      allowLoc:     "माझे स्थान सामायिक करा आणि सुरू करा",
+      requesting:   "स्थान शोधत आहे…",
+      gateDesc:     "सरकारी योजना, जवळच्या सेवा आणि नागरी माहितीसाठी AI-चालित मदत — मराठी आणि इंग्रजीत.",
+      gateNote:     "स्थान फक्त जवळच्या सेवा शोधण्यासाठी वापरले जाते आणि कधीही संग्रहित केले जात नाही.",
+    },
+  };
+
+  const get    = () => _lang;
+  const t      = (key) => STRINGS[_lang][key] ?? STRINGS["en"][key] ?? key;
+  const toggle = () => { _lang = _lang === "en" ? "mr" : "en"; };
+  const set    = (l)  => { if (l === "en" || l === "mr") _lang = l; };
+
+  return { get, t, toggle, set };
+})();
+
+
+/* ════════════════════════════════════════════════════════════
+   VoiceService
+════════════════════════════════════════════════════════════ */
+const VoiceService = (() => {
+  let _recognition = null;
+  let _isListening = false;
+  let _callbacks   = {};
+  let _voicesReady = false;
+
+  const _loadVoices = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.addEventListener("voiceschanged", () => { _voicesReady = true; });
+      setTimeout(() => { _voicesReady = true; }, 1500);
+    }
+  };
+  _loadVoices();
+
+  const isSupported = () =>
+    "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+
+  const init = (cbs) => {
+    _callbacks = cbs;
+    if (!isSupported()) return false;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    _recognition = new SR();
+    _recognition.continuous      = false;
+    _recognition.interimResults  = true;
+    _recognition.maxAlternatives = 1;
+
+    _recognition.onresult = (e) => {
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join("");
+      _callbacks.onResult?.(transcript, e.results[e.results.length - 1].isFinal);
+    };
+    _recognition.onend   = () => { _isListening = false; _callbacks.onEnd?.(); };
+    _recognition.onerror = (e) => { _isListening = false; _callbacks.onError?.(e.error); };
+    return true;
+  };
+
+  const start = () => {
+    if (!_recognition || _isListening) return;
+    _recognition.lang = LangService.get() === "mr" ? "mr-IN" : "en-US";
+    try { _recognition.start(); _isListening = true; } catch (e) { console.warn("STT:", e); }
+  };
+
+  const stop        = () => { try { _recognition?.stop(); } catch {} };
+  const isListening = () => _isListening;
+
+  const speak = (text) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+
+    const clean = text
+      .replace(/[\u{1F300}-\u{1FFFF}]/gu, "")
+      .replace(/\*+/g, "")
+      .replace(/#{1,6}\s/g, "")
+      .replace(/`+/g, "")
+      .trim();
+    if (!clean) return;
+
+    const lang  = LangService.get();
+    const utter = new SpeechSynthesisUtterance(clean);
+
+    const _doSpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      let voice = null;
+      if (lang === "mr") {
+        voice =
+          voices.find(v => v.lang === "mr-IN") ||
+          voices.find(v => v.lang === "hi-IN") ||
+          voices.find(v => v.lang.startsWith("mr")) ||
+          voices.find(v => v.lang === "en-IN") ||
+          voices[0] || null;
+      } else {
+        voice =
+          voices.find(v => v.lang === "en-IN") ||
+          voices.find(v => v.lang === "en-US") ||
+          voices.find(v => v.lang === "en-GB") ||
+          voices.find(v => v.lang.startsWith("en")) ||
+          voices[0] || null;
+      }
+      if (voice) utter.voice = voice;
+      utter.lang   = lang === "mr" ? "mr-IN" : "en-IN";
+      utter.rate   = 1.1;
+      utter.pitch  = 1.0;
+      utter.volume = 1.0;
+      window.speechSynthesis.speak(utter);
+    };
+
+    if (_voicesReady || window.speechSynthesis.getVoices().length > 0) {
+      _doSpeak();
+    } else {
+      setTimeout(_doSpeak, 800);
+    }
+  };
+
+  const stopSpeaking = () => { try { window.speechSynthesis?.cancel(); } catch {} };
+
+  return { isSupported, init, start, stop, isListening, speak, stopSpeaking };
+})();
+
+
+/* ════════════════════════════════════════════════════════════
+   WebSocketService
+════════════════════════════════════════════════════════════ */
+const WebSocketService = (() => {
+  const WS_URL = "wss://amravati-sarthi-api.onrender.com/ws/chat";
+  const socket = new WebSocket(WS_URL);
+  let _socket  = null;
+  let _timer   = null;
+  let _cbs     = {};
+
+  const connect = (cbs) => { _cbs = cbs; _dial(); };
+
+  const _dial = () => {
+    if (_timer) { clearTimeout(_timer); _timer = null; }
+    _socket = new WebSocket(WS_URL);
+    _socket.onopen    = () => _cbs.onOpen?.();
+    _socket.onmessage = (e) => _cbs.onMessage?.(e.data);
+    _socket.onclose   = () => { _cbs.onClose?.(); _timer = setTimeout(_dial, 3000); };
+    _socket.onerror   = () => _socket.close();
+  };
+
+  const send    = (payload) => {
+    if (_socket?.readyState === WebSocket.OPEN) { _socket.send(JSON.stringify(payload)); return true; }
+    return false;
+  };
+  const isReady = () => _socket?.readyState === WebSocket.OPEN;
+
+  return { connect, send, isReady };
+})();
+
+
+/* ════════════════════════════════════════════════════════════
+   UIController
+════════════════════════════════════════════════════════════ */
+const UIController = (() => {
+  const $  = (id) => document.getElementById(id);
+  const el = {
+    gate:     $("gate"),
+    app:      $("app"),
+    messages: $("messages"),
+    input:    $("msg-input"),
+    sendBtn:  $("send-btn"),
+    voiceBtn: $("voice-btn"),       // now the orb wrapper div
+    themeBtn: $("theme-btn"),
+    clearBtn: $("clear-btn"),
+    langBtn:  $("lang-btn"),
+    langLbl:  $("lang-label"),
+    status:   $("status-text"),
+    connDot:  $("conn-dot"),
+    connLbl:  $("conn-label"),
+    locBtnTx: $("loc-btn-text"),
+    skipBtn:  $("btn-skip-loc"),
+    allowBtn: $("btn-allow-loc"),
+    orbRing:  $("orb-ring"),
+  };
+
+  let _isDark    = false;
+  let _typingRow = null;
+
+  /* ── Helpers ──────────────────────────────────────────── */
+  const nowTime   = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const escHtml   = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const scrollEnd = () => { el.messages.scrollTop = el.messages.scrollHeight; };
+
+  const cleanMarkdown = (text) => text
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
+    .replace(/^\s*[-*•]\s+/gm, "• ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  /* ── Gate ──────────────────────────────────────────────── */
+  const hideGate = () => {
+    el.gate.classList.add("exiting");
+    setTimeout(() => { el.gate.style.display = "none"; el.app.classList.remove("hidden"); }, 500);
+  };
+
+  /* ── Theme ─────────────────────────────────────────────── */
+  const applyTheme = () => {
+    document.body.classList.toggle("dark", _isDark);
+    el.themeBtn.textContent = _isDark ? "☀️" : "🌙";
+  };
+  el.themeBtn.addEventListener("click", () => { _isDark = !_isDark; applyTheme(); });
+
+  /* ── Language ───────────────────────────────────────────── */
+  const applyLang = () => {
+    const lang = LangService.get();
+    el.langLbl.textContent = LangService.t("toggleLabel");
+    el.langBtn.classList.toggle("active-mr", lang === "mr");
+    el.input.placeholder   = LangService.t("placeholder");
+    el.skipBtn.textContent = LangService.t("skipLoc");
+    el.locBtnTx.textContent = LangService.t("allowLoc");
+    const gDesc = document.querySelector(".gate-desc");
+    const gNote = document.querySelector(".gate-footnote");
+    if (gDesc) gDesc.textContent = LangService.t("gateDesc");
+    if (gNote) gNote.textContent = LangService.t("gateNote");
+  };
+  el.langBtn.addEventListener("click", () => { LangService.toggle(); applyLang(); });
+
+  /* ── Connection ─────────────────────────────────────────── */
+  const setOnline = (online) => {
+    el.connDot.classList.toggle("online", online);
+    el.connLbl.textContent = online ? "Online" : "Offline";
+    el.status.textContent  = online ? LangService.t("online") : LangService.t("reconnecting");
+    el.sendBtn.disabled    = !online;
+  };
+
+  /* ── Row builders ───────────────────────────────────────── */
+  const _textRow = (text, role) => {
+    const row = document.createElement("div");
+    row.className = `msg-row ${role}`;
+    const av = document.createElement("div");
+    av.className   = "msg-avatar";
+    av.textContent = role === "bot" ? "🤖" : "👤";
+    const cnt = document.createElement("div");
+    cnt.className = "msg-content";
+    if (role === "user") cnt.style.alignItems = "flex-end";
+    const b = document.createElement("div");
+    b.className   = "bubble";
+    b.textContent = role === "bot" ? cleanMarkdown(text) : text;
+    const ts = document.createElement("span");
+    ts.className   = "msg-time";
+    ts.textContent = nowTime();
+    cnt.appendChild(b); cnt.appendChild(ts);
+    row.appendChild(av); row.appendChild(cnt);
+    return row;
+  };
+
+  const _locationRow = (businesses, aiText) => {
+    const row = document.createElement("div");
+    row.className = "msg-row bot";
+    const av = document.createElement("div");
+    av.className   = "msg-avatar";
+    av.textContent = "🤖";
+    const cnt = document.createElement("div");
+    cnt.className  = "msg-content";
+    cnt.style.maxWidth = "92%";
+
+    if (aiText?.trim()) {
+      const b = document.createElement("div");
+      b.className   = "bubble";
+      b.textContent = cleanMarkdown(aiText.trim());
+      cnt.appendChild(b);
+    }
+
+    const mapId = `map-${Date.now()}`;
+    const mw    = document.createElement("div");
+    mw.className  = "map-wrap";
+    mw.innerHTML  = `<div id="${mapId}" class="leaflet-map"></div>`;
+    cnt.appendChild(mw);
+
+    requestAnimationFrame(() => {
+      const { lat: uLat, lng: uLng } = LocationService.get();
+      const centre = businesses[0] ? [businesses[0].lat, businesses[0].lng] : [uLat, uLng];
+      const map = L.map(mapId, { zoomControl: true, scrollWheelZoom: false }).setView(centre, 14);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors", maxZoom: 18,
+      }).addTo(map);
+
+      L.marker([uLat, uLng], {
+        icon: L.divIcon({ className: "", html: `<div class="map-pin user-pin">📍</div>`, iconSize: [28,28], iconAnchor: [14,28] })
+      }).addTo(map).bindPopup(`<b>${LangService.t("yourLoc")}</b>`);
+
+      businesses.forEach((b, i) => {
+        L.marker([b.lat, b.lng], {
+          icon: L.divIcon({ className: "", html: `<div class="map-pin biz-pin">${i+1}</div>`, iconSize: [24,24], iconAnchor: [12,24] })
+        }).addTo(map).bindPopup(
+          `<b>${b.name}</b><br>${b.category}<br>📏 ${b.distance_km} km<br>` +
+          `<a href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}" target="_blank" style="color:#4f8ef7;font-weight:600">Get Directions ↗</a>`
+        );
+      });
+      map.fitBounds([[uLat,uLng], ...businesses.map(b=>[b.lat,b.lng])], { padding:[18,18] });
+    });
+
+    const wrap = document.createElement("div");
+    wrap.className = "location-cards-wrap";
+    businesses.forEach((b, i) => {
+      const { lat: uLat, lng: uLng } = LocationService.get();
+      const c = document.createElement("div");
+      c.className = "location-card";
+      c.style.animationDelay = `${i * 0.07}s`;
+      c.innerHTML = `
+        <div class="lc-header">
+          <span class="lc-num">${i+1}</span>
+          <span class="lc-name">${escHtml(b.name)}</span>
+          <span class="lc-badge">${escHtml(b.category)}</span>
+        </div>
+        <div class="lc-detail">📍 ${escHtml(b.address || "Amravati")}</div>
+        ${b.phone         ? `<div class="lc-detail">📞 ${escHtml(b.phone)}</div>`         : ""}
+        ${b.opening_hours ? `<div class="lc-detail">🕐 ${escHtml(b.opening_hours)}</div>` : ""}
+        <div class="lc-footer">
+          <span class="lc-dist">📏 ${b.distance_km} km away</span>
+          <a class="lc-dir-btn"
+             href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}"
+             target="_blank" rel="noopener">Get Directions ↗</a>
+        </div>`;
+      wrap.appendChild(c);
+    });
+
+    const ts = document.createElement("span");
+    ts.className = "msg-time"; ts.textContent = nowTime();
+    cnt.appendChild(wrap); cnt.appendChild(ts);
+    row.appendChild(av); row.appendChild(cnt);
+    return row;
+  };
+
+  const _chips = () => {
+    const wrap = document.createElement("div");
+    wrap.className = "chips-wrap"; wrap.id = "quick-chips";
+    LangService.t("chips").forEach(label => {
+      const chip = document.createElement("button");
+      chip.className   = "chip";
+      chip.textContent = label;
+      chip.addEventListener("click", () => {
+        const query = label.replace(/^[\p{Emoji}\s]+/u, "").trim();
+        el.input.value = query;
+        wrap.remove();
+        sendMessage();
+      });
+      wrap.appendChild(chip);
+    });
+    return wrap;
+  };
+
+  /* ── Public append ──────────────────────────────────────── */
+  const appendMessage = (text, role, tts = true) => {
+    el.messages.appendChild(_textRow(text, role));
+    scrollEnd();
+    if (tts && role === "bot") VoiceService.speak(text);
+  };
+
+  const appendLocationRow = (businesses, aiText) => {
+    el.messages.appendChild(_locationRow(businesses, aiText));
+    scrollEnd();
+    if (aiText) VoiceService.speak(aiText);
+  };
+
+  const showWelcome = () => {
+    appendMessage(LangService.t("welcome"), "bot", false);
+    el.messages.appendChild(_chips());
+    scrollEnd();
+  };
+
+  /* ── Typing ─────────────────────────────────────────────── */
+  const showTyping = () => {
+    el.status.textContent = LangService.t("typing");
+    _typingRow = document.createElement("div");
+    _typingRow.className = "msg-row bot";
+    _typingRow.innerHTML = `
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-content">
+        <div class="bubble" style="padding:0">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+        </div>
+      </div>`;
+    el.messages.appendChild(_typingRow);
+    scrollEnd();
+  };
+
+  const removeTyping = () => {
+    _typingRow?.remove(); _typingRow = null;
+    el.status.textContent = LangService.t("online");
+  };
+
+  /* ── Send ───────────────────────────────────────────────── */
+  const sendMessage = () => {
+    const text = el.input.value.trim();
+    if (!text || !WebSocketService.isReady()) return;
+    $("quick-chips")?.remove();
+    appendMessage(text, "user", false);
+    showTyping();
+    el.sendBtn.disabled = true;
+    const { lat, lng } = LocationService.get();
+    WebSocketService.send({ text, lat, lng, lang: LangService.get() });
+    el.input.value = "";
+    el.input.style.height = "auto";
+  };
+
+  /* ── Incoming ───────────────────────────────────────────── */
+  const handleMessage = (data) => {
+    removeTyping();
+    if (data.startsWith("LOCATIONS:")) {
+      const sep = data.indexOf("||");
+      try {
+        appendLocationRow(JSON.parse(data.slice("LOCATIONS:".length, sep)), data.slice(sep + 2));
+      } catch { appendMessage(data, "bot"); }
+    } else {
+      appendMessage(data, "bot");
+    }
+    el.sendBtn.disabled = false;
+  };
+
+  /* ── Voice orb ──────────────────────────────────────────── */
+  const initVoice = () => {
+    const ok = VoiceService.init({
+      onResult: (transcript) => {
+        el.input.value = transcript;
+        el.input.style.height = "auto";
+        el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px";
+      },
+      onEnd: () => {
+        el.voiceBtn.classList.remove("listening");
+        el.voiceBtn.title = "Tap to speak";
+        if (el.input.value.trim()) sendMessage();
+      },
+      onError: (err) => {
+        el.voiceBtn.classList.remove("listening");
+        el.voiceBtn.title = "Tap to speak";
+        if (err === "not-allowed") appendMessage(LangService.t("micDenied"), "bot", false);
+      },
+    });
+
+    if (!ok) {
+      /* Hide orb gracefully if STT not supported */
+      el.voiceBtn.style.display = "none";
+      return;
+    }
+
+    el.voiceBtn.addEventListener("click", () => {
+      if (VoiceService.isListening()) {
+        VoiceService.stop();
+        el.voiceBtn.classList.remove("listening");
+      } else {
+        VoiceService.stopSpeaking();
+        el.voiceBtn.classList.add("listening");
+        el.voiceBtn.title = "Listening… tap to stop";
+        VoiceService.start();
+      }
+    });
+  };
+
+  /* ── Input events ───────────────────────────────────────── */
+  el.input.addEventListener("input", () => {
+    el.input.style.height = "auto";
+    el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px";
+  });
+  el.input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  el.sendBtn.addEventListener("click", sendMessage);
+  el.clearBtn.addEventListener("click", () => {
+    VoiceService.stopSpeaking();
+    el.messages.innerHTML = "";
+    showWelcome();
+  });
+
+  return {
+    hideGate, applyTheme, applyLang, setOnline,
+    showWelcome, handleMessage, initVoice,
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════════
+   Boot
+════════════════════════════════════════════════════════════ */
+(() => {
+  const allowBtn = document.getElementById("btn-allow-loc");
+  const skipBtn  = document.getElementById("btn-skip-loc");
+  const locTxt   = document.getElementById("loc-btn-text");
+
+  const _unlockTTS = () => {
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance(""); u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
+  };
+
+  const launch = () => {
+    UIController.hideGate();
+    UIController.applyTheme();
+    UIController.applyLang();
+    WebSocketService.connect({
+      onOpen:    () => { UIController.setOnline(true);  UIController.showWelcome(); },
+      onClose:   () => { UIController.setOnline(false); },
+      onMessage: (data) => UIController.handleMessage(data),
+    });
+    UIController.initVoice();
+  };
+
+  allowBtn.addEventListener("click", async () => {
+    _unlockTTS();
+    locTxt.textContent  = LangService.t("requesting");
+    allowBtn.disabled   = true;
+    await LocationService.request();
+    launch();
+  });
+
+  skipBtn.addEventListener("click", () => {
+    _unlockTTS();
+    LocationService.useFallback();
+    launch();
+  });
+})();

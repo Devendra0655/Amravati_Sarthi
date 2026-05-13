@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#020008"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>Amravati Sarthi — अमरावती सारथी</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Mukta:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.92/build/spline-viewer.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css"/>
+</head>
+<body>
+
+<!-- ══ GATE ══════════════════════════════════════════════ -->
+<div id="gate" class="gate">
+  <div class="gate-bg">
+    <div class="gb-orb gb1"></div>
+    <div class="gb-orb gb2"></div>
+    <div class="gb-orb gb3"></div>
+    <div class="gb-orb gb4"></div>
+    <div class="gb-noise"></div>
+    <div class="gb-grid"></div>
+    <div class="gb-scan"></div>
+  </div>
+  <div class="gate-inner">
+    <div class="gate-brand">
+      <div class="brand-emblem">
+        <div class="be-ring r1"></div>
+        <div class="be-ring r2"></div>
+        <div class="be-ring r3"></div>
+        <span class="be-icon">🏛️</span>
+      </div>
+      <h1 class="brand-title">अमरावती<br/>सारथी</h1>
+      <p class="brand-sub">AMRAVATI SMART CITY GUIDE</p>
+      <p class="brand-desc">AI-powered civic assistant — government schemes, nearby services, and city info in Marathi &amp; English.</p>
+      <div class="brand-tags">
+        <span class="tag">🌾 Schemes</span>
+        <span class="tag">🏥 Nearby</span>
+        <span class="tag">🗺️ Maps</span>
+        <span class="tag">🎙️ Voice</span>
+      </div>
+    </div>
+    <div class="gate-card">
+      <span class="gc-eyebrow">GETTING STARTED</span>
+      <h2 class="gc-title">Enable Location</h2>
+      <p class="gc-desc">We use your location to find the nearest hospitals, pharmacies, ATMs, and services. Nothing is stored.</p>
+      <div class="gc-actions">
+        <button id="btn-allow-loc" class="btn-glow">
+          <span class="btn-glow-bg"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          </svg>
+          <span id="loc-btn-text">Share Location &amp; Start</span>
+        </button>
+        <button id="btn-skip-loc" class="btn-outline">Continue without location</button>
+      </div>
+      <p class="gc-note">Location data never leaves your device.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ═══════════════════════════════════════════════ -->
+<div id="app" class="app hidden">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="tb-brand">
+      <div class="tb-logo">🏛️</div>
+      <div class="tb-meta">
+        <span class="tb-name">Amravati Sarthi</span>
+        <span class="tb-status" id="status-text">Connecting…</span>
+      </div>
+    </div>
+    <div class="tb-controls">
+      <button id="lang-btn" class="tb-btn lang-btn"><span id="lang-label">मराठी</span></button>
+      <button id="theme-btn" class="tb-btn">🌙</button>
+      <button id="clear-btn" class="tb-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+          <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
+        </svg>
+      </button>
+    </div>
+    <div class="tb-conn">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-label">—</span>
+    </div>
+  </header>
+
+  <!-- Body: chat + orb side by side on desktop -->
+  <div class="app-body">
+
+    <section class="chat-panel">
+      <div class="messages" id="messages"></div>
+    </section>
+
+    <!-- Orb panel -->
+    <aside class="orb-panel">
+      <div class="orb-stage">
+        <div class="orb-aura" id="orb-aura">
+          <div class="aura-ring ar1"></div>
+          <div class="aura-ring ar2"></div>
+          <div class="aura-ring ar3"></div>
+        </div>
+        <spline-viewer
+          id="spline-orb"
+          url="https://prod.spline.design/ul8syGRjucpMKw4Z/scene.splinecode"
+          class="spline-orb"
+        ></spline-viewer>
+        <button id="voice-btn" class="voice-trigger" aria-label="Voice input"></button>
+        <span class="orb-label" id="orb-label">Tap to speak</span>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Input dock -->
+  <footer class="input-dock">
+    <div class="input-shell">
+      <textarea id="msg-input" rows="1" placeholder="Type or tap the orb to speak…"></textarea>
+      <button id="send-btn" class="send-btn" disabled>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+</div>
+<script src="/static/scripts/app.js"></script>
+</body>
+</html>
