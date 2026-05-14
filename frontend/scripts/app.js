@@ -206,8 +206,7 @@ const VoiceService = (() => {
    WebSocketService
 ════════════════════════════════════════════════════════════ */
 const WebSocketService = (() => {
-  const WS_URL = "wss://amravati-sarthi-api.onrender.com/ws/chat";
-  const socket = new WebSocket(WS_URL);
+  const WS_URL = "wss://amravati-sarthi.onrender.com/ws/chat";
   let _socket  = null;
   let _timer   = null;
   let _cbs     = {};
