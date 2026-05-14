@@ -39,6 +39,9 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=False), name=
 async def serve_frontend():
     return FileResponse(INDEX_FILE)
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.websocket("/ws/chat")
 async def chat_endpoint(websocket: WebSocket):

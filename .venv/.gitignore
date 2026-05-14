@@ -1,2 +1,9 @@
-# created by virtualenv automatically
-*.env
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.csv
+*.sql
+OSM.py
+generate_sql.py
+modelcheck.py
