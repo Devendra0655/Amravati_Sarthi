@@ -184,7 +184,7 @@ const VoiceService = (() => {
       }
       if (voice) utter.voice = voice;
       utter.lang   = lang === "mr" ? "mr-IN" : "en-IN";
-      utter.rate   = 1.1;
+      utter.rate   = 1.2;
       utter.pitch  = 1.0;
       utter.volume = 1.0;
       window.speechSynthesis.speak(utter);
