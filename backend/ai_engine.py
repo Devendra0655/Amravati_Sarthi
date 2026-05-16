@@ -4,13 +4,41 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from groq import AsyncGroq
-from backend.database import get_government_schemes, get_nearby_businesses
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env", override=False)
 
 MOCK_AI = os.getenv("MOCK_AI", "false").strip().lower() in ("true", "1", "yes")
 _client = None if MOCK_AI else AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 _MODEL  = "llama-3.3-70b-versatile"
+
+# ── Safe DB imports — fall back to None if DB is broken ──────────────────────
+try:
+    from backend.database import get_government_schemes as _db_schemes
+    from backend.database import get_nearby_businesses  as _db_businesses
+    _DB_OK = True
+except Exception as e:
+    print(f"⚠️  DB functions unavailable: {e}")
+    _DB_OK = False
+
+async def _safe_get_businesses(hint, lat, lng):
+    """Call DB; return [] silently if DB is down."""
+    if not _DB_OK:
+        return []
+    try:
+        return await asyncio.wait_for(_db_businesses(hint, lat, lng), timeout=6.0) or []
+    except Exception as e:
+        print(f"⚠️  get_nearby_businesses failed: {e}")
+        return []
+
+async def _safe_get_schemes(query):
+    """Call DB; return [] silently if DB is down."""
+    if not _DB_OK:
+        return []
+    try:
+        return await asyncio.wait_for(_db_schemes(query), timeout=6.0) or []
+    except Exception as e:
+        print(f"⚠️  get_government_schemes failed: {e}")
+        return []
 
 # ── Keyword lists ─────────────────────────────────────────────────────────────
 _LOCATION_KW = [
@@ -49,7 +77,7 @@ _CATEGORY_MAP = {
     "police":     ["police", "पोलीस", "thana", "ठाणे", "station"],
 }
 
-# ── Emergency data (hardcoded, instant) ───────────────────────────────────────
+# ── Emergency data ────────────────────────────────────────────────────────────
 _EMERGENCY = {
     "en": (
         "🚨 Emergency Contacts — Amravati\n\n"
@@ -74,6 +102,39 @@ _EMERGENCY = {
         "• सर्व आपत्कालीन सेवा: 112"
     ),
 }
+
+# ── Fallback mock businesses (used when DB is down) ───────────────────────────
+_MOCK_HOSPITALS = [
+    {"name": "Amravati Civil Hospital",     "category": "hospital", "address": "Rajapeth, Amravati",        "lat": 20.9374, "lng": 77.7596, "phone": "0721-2662100",   "opening_hours": "24/7",        "distance_km": 0.8},
+    {"name": "Jawaharlal Nehru Hospital",   "category": "hospital", "address": "Camp Area, Amravati",       "lat": 20.9310, "lng": 77.7540, "phone": "0721-2550100",   "opening_hours": "24/7",        "distance_km": 1.4},
+    {"name": "Daga Memorial Hospital",      "category": "hospital", "address": "Jaistambh Chowk, Amravati","lat": 20.9325, "lng": 77.7558, "phone": "0721-2560200",   "opening_hours": "24/7",        "distance_km": 1.8},
+]
+_MOCK_PHARMACY = [
+    {"name": "Shri Medicals & Pharmacy",    "category": "pharmacy", "address": "Badnera Road, Amravati",   "lat": 20.9310, "lng": 77.7540, "phone": "+91-9876543210", "opening_hours": "08:00-22:00", "distance_km": 1.2},
+    {"name": "Apollo Pharmacy",             "category": "pharmacy", "address": "Rajapeth, Amravati",       "lat": 20.9370, "lng": 77.7580, "phone": "+91-9823100002", "opening_hours": "08:00-22:00", "distance_km": 1.6},
+]
+_MOCK_ATM = [
+    {"name": "SBI ATM",                     "category": "atm",      "address": "Jaistambh Square, Amravati","lat": 20.9330, "lng": 77.7560, "phone": None,            "opening_hours": "24/7",        "distance_km": 0.6},
+    {"name": "HDFC Bank ATM",               "category": "atm",      "address": "Rajapeth, Amravati",       "lat": 20.9360, "lng": 77.7575, "phone": None,            "opening_hours": "24/7",        "distance_km": 1.1},
+]
+_MOCK_RESTAURANT = [
+    {"name": "Hotel Tapovan",               "category": "restaurant","address": "Rajapeth, Amravati",       "lat": 20.9345, "lng": 77.7565, "phone": "+91-9823100003", "opening_hours": "09:00-23:00", "distance_km": 0.9},
+    {"name": "Panchavati Restaurant",       "category": "restaurant","address": "Badnera Road, Amravati",   "lat": 20.9300, "lng": 77.7535, "phone": "+91-9823100004", "opening_hours": "10:00-22:30", "distance_km": 1.5},
+]
+_MOCK_DEFAULT = _MOCK_HOSPITALS  # fallback for unknown categories
+
+def _get_mock_businesses(hint: str) -> list:
+    """Return mock data matching the category hint when DB is unavailable."""
+    h = hint.lower()
+    if any(k in h for k in ["hospital", "doctor", "रुग्णालय", "हॉस्पिटल"]):
+        return _MOCK_HOSPITALS
+    if any(k in h for k in ["pharmacy", "medicine", "औषध", "फार्मसी"]):
+        return _MOCK_PHARMACY
+    if any(k in h for k in ["atm", "cash", "पैसे"]):
+        return _MOCK_ATM
+    if any(k in h for k in ["restaurant", "food", "जेवण", "रेस्टॉरंट"]):
+        return _MOCK_RESTAURANT
+    return _MOCK_DEFAULT
 
 # ── System prompts ────────────────────────────────────────────────────────────
 _LANG_RULE = {
@@ -127,13 +188,6 @@ The UI shows full details — do not list all results.
 
 {lang_rule}"""
 
-_MOCK_BIZ = [
-    {"name": "Amravati Civil Hospital",  "category": "hospital",  "address": "Rajapeth, Amravati",        "lat": 20.9374, "lng": 77.7596, "phone": "0721-2662100",   "opening_hours": "24/7",        "distance_km": 0.8},
-    {"name": "Shri Medicals & Pharmacy", "category": "pharmacy",  "address": "Badnera Road, Amravati",    "lat": 20.9310, "lng": 77.7540, "phone": "+91-9876543210", "opening_hours": "08:00-22:00", "distance_km": 1.2},
-    {"name": "City Care Clinic",         "category": "clinic",    "address": "Jaistambh Chowk, Amravati", "lat": 20.9325, "lng": 77.7558, "phone": "+91-9823100001", "opening_hours": "09:00-21:00", "distance_km": 1.5},
-]
-
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _matches(msg: str, kws: list) -> bool:
     ml = msg.lower()
@@ -162,66 +216,60 @@ async def _llm(system: str, user: str, max_tokens: int = 1200) -> str:
     return resp.choices[0].message.content.strip()
 
 
-# ── Mock ──────────────────────────────────────────────────────────────────────
-async def _mock(msg: str, lang: str) -> str:
-    await asyncio.sleep(1.0)
-    if _matches(msg, _EMERGENCY_KW):
-        return _EMERGENCY.get(lang, _EMERGENCY["en"])
-    if _matches(msg, _LOCATION_KW):
-        txt = (
-            "मला तुमच्या जवळ 3 ठिकाणे सापडली. सर्वात जवळचे Amravati Civil Hospital आहे, फक्त 0.8 km अंतरावर."
-            if lang == "mr" else
-            "I found 3 nearby results for you. The closest is Amravati Civil Hospital, just 0.8 km away."
-        )
-        return f"LOCATIONS:{json.dumps(_MOCK_BIZ, ensure_ascii=False)}||{txt}"
-    return (
-        "नमस्कार! मी अमरावती सारथी आहे. सरकारी योजना, जवळचे रुग्णालय किंवा कोणत्याही नागरी सेवेबद्दल विचारा!"
-        if lang == "mr" else
-        "Hello! I'm Amravati Sarthi. Ask me about government schemes, nearby services, or anything about Amravati!"
-    )
-
-
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Main entry point ──────────────────────────────────────────────────────────
 async def process_chat_message(
     user_message: str,
     user_lat: float = 0.0,
     user_lng: float = 0.0,
     lang: str = "en",
 ) -> str:
-    if MOCK_AI:
-        return await _mock(user_message, lang)
 
-    # Emergency — instant, no LLM needed
+    # ── Emergency — instant, no LLM or DB needed ─────────────────────────────
     if _matches(user_message, _EMERGENCY_KW):
         return _EMERGENCY.get(lang, _EMERGENCY["en"])
 
-    # Location query
-    if user_lat != 0.0 and user_lng != 0.0 and _matches(user_message, _LOCATION_KW):
-        hint       = _category_hint(user_message) or user_message
-        businesses = await get_nearby_businesses(hint, user_lat, user_lng)
+    # ── Location query ────────────────────────────────────────────────────────
+    if _matches(user_message, _LOCATION_KW):
+        hint = _category_hint(user_message) or user_message
+
+        # Try DB first; fall back to mock data if DB is down
+        if user_lat != 0.0 and user_lng != 0.0:
+            businesses = await _safe_get_businesses(hint, user_lat, user_lng)
+        else:
+            businesses = []
+
+        # If DB returned nothing (down or no results), use mock data
         if not businesses:
-            return (
-                "मला जवळपास कोणतेही परिणाम सापडले नाहीत. कृपया वेगळ्या शब्दात शोधा."
-                if lang == "mr" else
-                "No results found nearby. Please try a different search term."
-            )
+            businesses = _get_mock_businesses(hint)
+
         context = "\n\n".join(
             f"Name: {b['name']}\nCategory: {b['category']}\n"
             f"Address: {b['address']}\nDistance: {b['distance_km']} km\n"
-            f"Phone: {b['phone'] or 'N/A'}\nHours: {b['opening_hours'] or 'N/A'}"
+            f"Phone: {b.get('phone') or 'N/A'}\nHours: {b.get('opening_hours') or 'N/A'}"
             for b in businesses
         )
-        summary = await _llm(
-            system=_sys(_SYSTEM_LOC, lang),
-            user=f"User asked: {user_message}\n\nNearby results ({len(businesses)} found):\n{context}",
-            max_tokens=160,
-        )
+
+        # Generate summary via LLM
+        try:
+            summary = await _llm(
+                system=_sys(_SYSTEM_LOC, lang),
+                user=f"User asked: {user_message}\n\nNearby results ({len(businesses)} found):\n{context}",
+                max_tokens=160,
+            )
+        except Exception as e:
+            print(f"⚠️  LLM summary failed: {e}")
+            summary = (
+                f"मला {len(businesses)} ठिकाणे सापडली. सर्वात जवळचे {businesses[0]['name']} आहे, {businesses[0]['distance_km']} km अंतरावर."
+                if lang == "mr" else
+                f"I found {len(businesses)} nearby results. The closest is {businesses[0]['name']}, {businesses[0]['distance_km']} km away."
+            )
+
         return f"LOCATIONS:{json.dumps(businesses, ensure_ascii=False)}||{summary}"
 
-    # Scheme or general query — fetch optional DB context
+    # ── Scheme / general query ────────────────────────────────────────────────
     db_context = ""
     if _matches(user_message, _SCHEME_KW):
-        schemes = await get_government_schemes(user_message)
+        schemes = await _safe_get_schemes(user_message)
         if schemes:
             db_context = "\n\n".join(
                 f"Scheme: {s['name']}\n"
@@ -238,8 +286,16 @@ async def process_chat_message(
         if db_context else user_message
     )
 
-    return await _llm(
-        system=_sys(_SYSTEM_MAIN, lang),
-        user=user_prompt,
-        max_tokens=1200,
-    )
+    try:
+        return await _llm(
+            system=_sys(_SYSTEM_MAIN, lang),
+            user=user_prompt,
+            max_tokens=1200,
+        )
+    except Exception as e:
+        print(f"❌  LLM call failed: {e}")
+        return (
+            "माफ करा, सध्या उत्तर देता येत नाही. कृपया पुन्हा प्रयत्न करा."
+            if lang == "mr" else
+            "Sorry, I couldn't process your request right now. Please try again."
+        )

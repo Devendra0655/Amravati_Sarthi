@@ -8,11 +8,43 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env", overrid
 _pool: AsyncConnectionPool | None = None
 
 
+def _build_conninfo() -> str:
+    """
+    Supabase transaction pooler URL looks like:
+    postgresql://postgres.xxxx:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+
+    We append sslmode=require and options to make it work with psycopg3 + Render.
+    Also disables prepared statements — required for Supabase transaction pooler mode.
+    """
+    url = os.getenv("DATABASE_URL", "")
+    if not url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+
+    # Supabase pooler requires sslmode=require
+    if "sslmode" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}sslmode=require"
+
+    return url
+
+
 async def get_pool() -> AsyncConnectionPool:
     global _pool
     if _pool is None:
-        _pool = AsyncConnectionPool(conninfo=os.getenv("DATABASE_URL"), open=False)
-        await _pool.open()
+        conninfo = _build_conninfo()
+        _pool = AsyncConnectionPool(
+            conninfo=conninfo,
+            open=False,
+            min_size=1,
+            max_size=5,               # Supabase free tier: max 15 connections via pooler
+            max_idle=300,             # close idle connections after 5 min
+            reconnect_timeout=10,
+            kwargs={
+                "prepare_threshold": None,  # REQUIRED for Supabase transaction pooler
+                "autocommit": True,         # better for async read-heavy workloads
+            },
+        )
+        await _pool.open(wait=True, timeout=10)   # wait=True ensures it's ready before returning
     return _pool
 
 
@@ -100,8 +132,8 @@ async def get_nearby_businesses(
             "name":          r[0],
             "category":      r[1],
             "address":       r[2],
-            "lat":           r[3],
-            "lng":           r[4],
+            "lat":           float(r[3]),
+            "lng":           float(r[4]),
             "phone":         r[5] or "",
             "opening_hours": r[6] or "",
             "distance_km":   float(r[7]),
