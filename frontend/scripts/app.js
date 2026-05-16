@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════
-   AMRAVATI SARTHI — app.js  v4.0
-   Voice orb: Spline 3D embed replaces flat mic button
+   AMRAVATI SARTHI — app.js  v5.0
+   Fixes: removed duplicate WebSocketService, added ping/pong
 ════════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════════════════
@@ -204,12 +204,18 @@ const VoiceService = (() => {
 
 /* ════════════════════════════════════════════════════════════
    WebSocketService
+   — auto-switches ws:// (local) ↔ wss:// (Render)
+   — handles __ping__ keepalive so Render never drops the socket
 ════════════════════════════════════════════════════════════ */
 const WebSocketService = (() => {
-  const WS_URL = "wss://amravati-sarthi.onrender.com/ws/chat";
-  let _socket  = null;
-  let _timer   = null;
-  let _cbs     = {};
+  const WS_URL = window.location.hostname === "localhost" ||
+                 window.location.hostname === "127.0.0.1"
+    ? "ws://127.0.0.1:8000/ws/chat"
+    : "wss://amravati-sarthi.onrender.com/ws/chat";
+
+  let _socket = null;
+  let _timer  = null;
+  let _cbs    = {};
 
   const connect = (cbs) => { _cbs = cbs; _dial(); };
 
@@ -217,15 +223,29 @@ const WebSocketService = (() => {
     if (_timer) { clearTimeout(_timer); _timer = null; }
     _socket = new WebSocket(WS_URL);
     _socket.onopen    = () => _cbs.onOpen?.();
-    _socket.onmessage = (e) => _cbs.onMessage?.(e.data);
-    _socket.onclose   = () => { _cbs.onClose?.(); _timer = setTimeout(_dial, 3000); };
-    _socket.onerror   = () => _socket.close();
+    _socket.onmessage = (e) => {
+      // Server keepalive ping — reply silently, never show in chat
+      if (e.data === "__ping__") {
+        try { _socket.send("__pong__"); } catch {}
+        return;
+      }
+      _cbs.onMessage?.(e.data);
+    };
+    _socket.onclose = () => {
+      _cbs.onClose?.();
+      _timer = setTimeout(_dial, 3000);   // auto-reconnect
+    };
+    _socket.onerror = () => _socket.close();
   };
 
-  const send    = (payload) => {
-    if (_socket?.readyState === WebSocket.OPEN) { _socket.send(JSON.stringify(payload)); return true; }
+  const send = (payload) => {
+    if (_socket?.readyState === WebSocket.OPEN) {
+      _socket.send(JSON.stringify(payload));
+      return true;
+    }
     return false;
   };
+
   const isReady = () => _socket?.readyState === WebSocket.OPEN;
 
   return { connect, send, isReady };
@@ -243,7 +263,7 @@ const UIController = (() => {
     messages: $("messages"),
     input:    $("msg-input"),
     sendBtn:  $("send-btn"),
-    voiceBtn: $("voice-btn"),       // now the orb wrapper div
+    voiceBtn: $("voice-btn"),
     themeBtn: $("theme-btn"),
     clearBtn: $("clear-btn"),
     langBtn:  $("lang-btn"),
@@ -254,7 +274,8 @@ const UIController = (() => {
     locBtnTx: $("loc-btn-text"),
     skipBtn:  $("btn-skip-loc"),
     allowBtn: $("btn-allow-loc"),
-    orbRing:  $("orb-ring"),
+    orbAura:  $("orb-aura"),
+    orbLabel: $("orb-label"),
   };
 
   let _isDark    = false;
@@ -275,27 +296,28 @@ const UIController = (() => {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  /* ── Gate ──────────────────────────────────────────────── */
+  /* ── Gate ─────────────────────────────────────────────── */
   const hideGate = () => {
     el.gate.classList.add("exiting");
     setTimeout(() => { el.gate.style.display = "none"; el.app.classList.remove("hidden"); }, 500);
   };
 
-  /* ── Theme ─────────────────────────────────────────────── */
+  /* ── Theme ────────────────────────────────────────────── */
   const applyTheme = () => {
     document.body.classList.toggle("dark", _isDark);
     el.themeBtn.textContent = _isDark ? "☀️" : "🌙";
   };
   el.themeBtn.addEventListener("click", () => { _isDark = !_isDark; applyTheme(); });
 
-  /* ── Language ───────────────────────────────────────────── */
+  /* ── Language ─────────────────────────────────────────── */
   const applyLang = () => {
     const lang = LangService.get();
-    el.langLbl.textContent = LangService.t("toggleLabel");
+    el.langLbl.textContent  = LangService.t("toggleLabel");
     el.langBtn.classList.toggle("active-mr", lang === "mr");
-    el.input.placeholder   = LangService.t("placeholder");
-    el.skipBtn.textContent = LangService.t("skipLoc");
+    el.input.placeholder    = LangService.t("placeholder");
+    el.skipBtn.textContent  = LangService.t("skipLoc");
     el.locBtnTx.textContent = LangService.t("allowLoc");
+    if (el.orbLabel) el.orbLabel.textContent = LangService.t("orbIdle") ?? "Tap to speak";
     const gDesc = document.querySelector(".gate-desc");
     const gNote = document.querySelector(".gate-footnote");
     if (gDesc) gDesc.textContent = LangService.t("gateDesc");
@@ -303,7 +325,7 @@ const UIController = (() => {
   };
   el.langBtn.addEventListener("click", () => { LangService.toggle(); applyLang(); });
 
-  /* ── Connection ─────────────────────────────────────────── */
+  /* ── Connection ───────────────────────────────────────── */
   const setOnline = (online) => {
     el.connDot.classList.toggle("online", online);
     el.connLbl.textContent = online ? "Online" : "Offline";
@@ -311,7 +333,13 @@ const UIController = (() => {
     el.sendBtn.disabled    = !online;
   };
 
-  /* ── Row builders ───────────────────────────────────────── */
+  /* ── Orb state ────────────────────────────────────────── */
+  const setOrbListening = (on) => {
+    el.orbAura?.classList.toggle("active", on);
+    if (el.orbLabel) el.orbLabel.textContent = on ? "Listening…" : "Tap to speak";
+  };
+
+  /* ── Row builders ─────────────────────────────────────── */
   const _textRow = (text, role) => {
     const row = document.createElement("div");
     row.className = `msg-row ${role}`;
@@ -372,7 +400,7 @@ const UIController = (() => {
           icon: L.divIcon({ className: "", html: `<div class="map-pin biz-pin">${i+1}</div>`, iconSize: [24,24], iconAnchor: [12,24] })
         }).addTo(map).bindPopup(
           `<b>${b.name}</b><br>${b.category}<br>📏 ${b.distance_km} km<br>` +
-          `<a href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}" target="_blank" style="color:#4f8ef7;font-weight:600">Get Directions ↗</a>`
+          `<a href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}" target="_blank" style="color:#818cf8;font-weight:600">Get Directions ↗</a>`
         );
       });
       map.fitBounds([[uLat,uLng], ...businesses.map(b=>[b.lat,b.lng])], { padding:[18,18] });
@@ -428,7 +456,7 @@ const UIController = (() => {
     return wrap;
   };
 
-  /* ── Public append ──────────────────────────────────────── */
+  /* ── Public append ────────────────────────────────────── */
   const appendMessage = (text, role, tts = true) => {
     el.messages.appendChild(_textRow(text, role));
     scrollEnd();
@@ -447,7 +475,7 @@ const UIController = (() => {
     scrollEnd();
   };
 
-  /* ── Typing ─────────────────────────────────────────────── */
+  /* ── Typing ───────────────────────────────────────────── */
   const showTyping = () => {
     el.status.textContent = LangService.t("typing");
     _typingRow = document.createElement("div");
@@ -468,7 +496,7 @@ const UIController = (() => {
     el.status.textContent = LangService.t("online");
   };
 
-  /* ── Send ───────────────────────────────────────────────── */
+  /* ── Send ─────────────────────────────────────────────── */
   const sendMessage = () => {
     const text = el.input.value.trim();
     if (!text || !WebSocketService.isReady()) return;
@@ -482,7 +510,7 @@ const UIController = (() => {
     el.input.style.height = "auto";
   };
 
-  /* ── Incoming ───────────────────────────────────────────── */
+  /* ── Incoming ─────────────────────────────────────────── */
   const handleMessage = (data) => {
     removeTyping();
     if (data.startsWith("LOCATIONS:")) {
@@ -496,7 +524,7 @@ const UIController = (() => {
     el.sendBtn.disabled = false;
   };
 
-  /* ── Voice orb ──────────────────────────────────────────── */
+  /* ── Voice orb ────────────────────────────────────────── */
   const initVoice = () => {
     const ok = VoiceService.init({
       onResult: (transcript) => {
@@ -505,37 +533,33 @@ const UIController = (() => {
         el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px";
       },
       onEnd: () => {
-        el.voiceBtn.classList.remove("listening");
-        el.voiceBtn.title = "Tap to speak";
+        setOrbListening(false);
         if (el.input.value.trim()) sendMessage();
       },
       onError: (err) => {
-        el.voiceBtn.classList.remove("listening");
-        el.voiceBtn.title = "Tap to speak";
+        setOrbListening(false);
         if (err === "not-allowed") appendMessage(LangService.t("micDenied"), "bot", false);
       },
     });
 
     if (!ok) {
-      /* Hide orb gracefully if STT not supported */
-      el.voiceBtn.style.display = "none";
+      if (el.voiceBtn) el.voiceBtn.style.display = "none";
       return;
     }
 
-    el.voiceBtn.addEventListener("click", () => {
+    el.voiceBtn?.addEventListener("click", () => {
       if (VoiceService.isListening()) {
         VoiceService.stop();
-        el.voiceBtn.classList.remove("listening");
+        setOrbListening(false);
       } else {
         VoiceService.stopSpeaking();
-        el.voiceBtn.classList.add("listening");
-        el.voiceBtn.title = "Listening… tap to stop";
+        setOrbListening(true);
         VoiceService.start();
       }
     });
   };
 
-  /* ── Input events ───────────────────────────────────────── */
+  /* ── Input events ─────────────────────────────────────── */
   el.input.addEventListener("input", () => {
     el.input.style.height = "auto";
     el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px";
