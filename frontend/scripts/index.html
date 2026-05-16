@@ -9,10 +9,9 @@
   <title>Amravati Sarthi — अमरावती सारथी</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Mukta:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Mukta:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.92/build/spline-viewer.js"></script>
   <link rel="stylesheet" href="/styles/main.css" />
 </head>
 <body>
@@ -38,7 +37,7 @@
       </div>
       <h1 class="brand-title">अमरावती<br/>सारथी</h1>
       <p class="brand-sub">AMRAVATI SMART CITY GUIDE</p>
-      <p class="brand-desc">AI-powered civic assistant — government schemes, nearby services, and city info in Marathi &amp; English.</p>
+      <p class="brand-desc gate-desc">AI-powered civic assistant — government schemes, nearby services, and city info in Marathi &amp; English.</p>
       <div class="brand-tags">
         <span class="tag">🌾 Schemes</span>
         <span class="tag">🏥 Nearby</span>
@@ -60,7 +59,7 @@
         </button>
         <button id="btn-skip-loc" class="btn-outline">Continue without location</button>
       </div>
-      <p class="gc-note">Location data never leaves your device.</p>
+      <p class="gc-note gate-footnote">Location data never leaves your device.</p>
     </div>
   </div>
 </div>
@@ -79,7 +78,7 @@
     </div>
     <div class="tb-controls">
       <button id="lang-btn" class="tb-btn lang-btn"><span id="lang-label">मराठी</span></button>
-      <button id="theme-btn" class="tb-btn">🌙</button>
+      <button id="theme-btn" class="tb-btn">☀️</button>
       <button id="clear-btn" class="tb-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
@@ -100,7 +99,7 @@
       <div class="messages" id="messages"></div>
     </section>
 
-    <!-- Orb panel -->
+    <!-- CSS Orb panel — no Spline, no watermark -->
     <aside class="orb-panel">
       <div class="orb-stage">
         <div class="orb-aura" id="orb-aura">
@@ -108,11 +107,22 @@
           <div class="aura-ring ar2"></div>
           <div class="aura-ring ar3"></div>
         </div>
-        <spline-viewer
-          id="spline-orb"
-          url="https://prod.spline.design/ul8syGRjucpMKw4Z/scene.splinecode"
-          class="spline-orb"
-        ></spline-viewer>
+        <!-- Pure CSS 3D orb -->
+        <div class="css-orb" id="css-orb">
+          <div class="orb-core"></div>
+          <div class="orb-shine"></div>
+          <div class="orb-inner-glow"></div>
+          <div class="orb-ring orb-ring-1"></div>
+          <div class="orb-ring orb-ring-2"></div>
+          <div class="orb-particles">
+            <div class="orb-particle p1"></div>
+            <div class="orb-particle p2"></div>
+            <div class="orb-particle p3"></div>
+            <div class="orb-particle p4"></div>
+            <div class="orb-particle p5"></div>
+            <div class="orb-particle p6"></div>
+          </div>
+        </div>
         <button id="voice-btn" class="voice-trigger" aria-label="Voice input"></button>
         <span class="orb-label" id="orb-label">Tap to speak</span>
       </div>
@@ -133,5 +143,6 @@
   </footer>
 
 </div>
-<script src="/scripts/app.js"></script></body>
+<script src="/scripts/app.js"></script>
+</body>
 </html>

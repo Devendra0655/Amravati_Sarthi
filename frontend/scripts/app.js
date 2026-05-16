@@ -1,6 +1,7 @@
 /* ════════════════════════════════════════════════════════════
-   AMRAVATI SARTHI — app.js  v5.0
-   Fixes: removed duplicate WebSocketService, added ping/pong
+   AMRAVATI SARTHI — app.js  v6.0
+   Fixes: dark=default theme, body.light toggle,
+          body.lang-mr for Marathi font, css-orb listening
 ════════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════════════════
@@ -204,14 +205,12 @@ const VoiceService = (() => {
 
 /* ════════════════════════════════════════════════════════════
    WebSocketService
-   — auto-switches ws:// (local) ↔ wss:// (Render)
-   — handles __ping__ keepalive so Render never drops the socket
 ════════════════════════════════════════════════════════════ */
 const WebSocketService = (() => {
   const WS_URL = window.location.hostname === "localhost" ||
                  window.location.hostname === "127.0.0.1"
     ? "ws://127.0.0.1:8000/ws/chat"
-    : "wss://amravati-sarthi.onrender.com/ws/chat";
+    : "wss://amravati-sarthi-api.onrender.com/ws/chat";
 
   let _socket = null;
   let _timer  = null;
@@ -224,7 +223,6 @@ const WebSocketService = (() => {
     _socket = new WebSocket(WS_URL);
     _socket.onopen    = () => _cbs.onOpen?.();
     _socket.onmessage = (e) => {
-      // Server keepalive ping — reply silently, never show in chat
       if (e.data === "__ping__") {
         try { _socket.send("__pong__"); } catch {}
         return;
@@ -233,7 +231,7 @@ const WebSocketService = (() => {
     };
     _socket.onclose = () => {
       _cbs.onClose?.();
-      _timer = setTimeout(_dial, 3000);   // auto-reconnect
+      _timer = setTimeout(_dial, 3000);
     };
     _socket.onerror = () => _socket.close();
   };
@@ -276,9 +274,11 @@ const UIController = (() => {
     allowBtn: $("btn-allow-loc"),
     orbAura:  $("orb-aura"),
     orbLabel: $("orb-label"),
+    cssOrb:   $("css-orb"),
   };
 
-  let _isDark    = false;
+  // Dark is default — _isLight tracks whether light mode is ON
+  let _isLight   = false;
   let _typingRow = null;
 
   /* ── Helpers ──────────────────────────────────────────── */
@@ -303,21 +303,24 @@ const UIController = (() => {
   };
 
   /* ── Theme ────────────────────────────────────────────── */
+  // Dark is default. Clicking toggles to light, then back to dark.
   const applyTheme = () => {
-    document.body.classList.toggle("dark", _isDark);
-    el.themeBtn.textContent = _isDark ? "☀️" : "🌙";
+    document.body.classList.toggle("light", _isLight);
+    el.themeBtn.textContent = _isLight ? "🌙" : "☀️";
   };
-  el.themeBtn.addEventListener("click", () => { _isDark = !_isDark; applyTheme(); });
+  el.themeBtn.addEventListener("click", () => { _isLight = !_isLight; applyTheme(); });
 
   /* ── Language ─────────────────────────────────────────── */
   const applyLang = () => {
     const lang = LangService.get();
+    // Apply Marathi font class to body for lighter weight rendering
+    document.body.classList.toggle("lang-mr", lang === "mr");
     el.langLbl.textContent  = LangService.t("toggleLabel");
     el.langBtn.classList.toggle("active-mr", lang === "mr");
     el.input.placeholder    = LangService.t("placeholder");
     el.skipBtn.textContent  = LangService.t("skipLoc");
     el.locBtnTx.textContent = LangService.t("allowLoc");
-    if (el.orbLabel) el.orbLabel.textContent = LangService.t("orbIdle") ?? "Tap to speak";
+    if (el.orbLabel) el.orbLabel.textContent = lang === "mr" ? "बोलण्यासाठी दाबा" : "Tap to speak";
     const gDesc = document.querySelector(".gate-desc");
     const gNote = document.querySelector(".gate-footnote");
     if (gDesc) gDesc.textContent = LangService.t("gateDesc");
@@ -336,7 +339,13 @@ const UIController = (() => {
   /* ── Orb state ────────────────────────────────────────── */
   const setOrbListening = (on) => {
     el.orbAura?.classList.toggle("active", on);
-    if (el.orbLabel) el.orbLabel.textContent = on ? "Listening…" : "Tap to speak";
+    el.cssOrb?.classList.toggle("listening", on);
+    if (el.orbLabel) {
+      el.orbLabel.classList.toggle("listening", on);
+      el.orbLabel.textContent = on
+        ? (LangService.get() === "mr" ? "ऐकत आहे…" : "Listening…")
+        : (LangService.get() === "mr" ? "बोलण्यासाठी दाबा" : "Tap to speak");
+    }
   };
 
   /* ── Row builders ─────────────────────────────────────── */
