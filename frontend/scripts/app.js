@@ -1,44 +1,8 @@
 /* ════════════════════════════════════════════════════════════
-   AMRAVATI SARTHI — app.js  v7.0
-   Adds: PWA install prompt, theme-color meta update,
-         service worker registration
+   AMRAVATI SARTHI — app.js  v6.0
+   Fixes: dark=default theme, body.light toggle,
+          body.lang-mr for Marathi font, css-orb listening
 ════════════════════════════════════════════════════════════ */
-
-/* ════════════════════════════════════════════════════════════
-   PWA — register service worker + install prompt
-════════════════════════════════════════════════════════════ */
-let _pwaPrompt = null;
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
-}
-
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  _pwaPrompt = e;
-  // Show install buttons wherever they exist
-  document.getElementById("btn-pwa-install")?.classList.add("visible");
-  const ib = document.getElementById("install-btn");
-  if (ib) ib.style.display = "flex";
-});
-
-window.addEventListener("appinstalled", () => {
-  _pwaPrompt = null;
-  document.getElementById("btn-pwa-install")?.classList.remove("visible");
-  const ib = document.getElementById("install-btn");
-  if (ib) ib.style.display = "none";
-});
-
-const triggerInstall = async () => {
-  if (!_pwaPrompt) return;
-  _pwaPrompt.prompt();
-  await _pwaPrompt.userChoice;
-  _pwaPrompt = null;
-};
-
-document.getElementById("btn-pwa-install")?.addEventListener("click", triggerInstall);
-document.getElementById("install-btn")?.addEventListener("click", triggerInstall);
-
 
 /* ════════════════════════════════════════════════════════════
    LocationService
@@ -99,7 +63,6 @@ const LangService = (() => {
       requesting:   "Requesting location…",
       gateDesc:     "AI-powered help for government schemes, nearby services & civic info — in Marathi & English.",
       gateNote:     "Location is used only to find services near you and is never stored on our servers.",
-      installApp:   "Add to Home Screen",
     },
     mr: {
       placeholder:  "अमरावतीबद्दल काहीही विचारा…",
@@ -126,7 +89,6 @@ const LangService = (() => {
       requesting:   "स्थान शोधत आहे…",
       gateDesc:     "सरकारी योजना, जवळच्या सेवा आणि नागरी माहितीसाठी AI-चालित मदत — मराठी आणि इंग्रजीत.",
       gateNote:     "स्थान फक्त जवळच्या सेवा शोधण्यासाठी वापरले जाते आणि कधीही संग्रहित केले जात नाही.",
-      installApp:   "होम स्क्रीनवर जोडा",
     },
   };
 
@@ -190,27 +152,49 @@ const VoiceService = (() => {
   const speak = (text) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+
     const clean = text
       .replace(/[\u{1F300}-\u{1FFFF}]/gu, "")
-      .replace(/\*+/g, "").replace(/#{1,6}\s/g, "").replace(/`+/g, "").trim();
+      .replace(/\*+/g, "")
+      .replace(/#{1,6}\s/g, "")
+      .replace(/`+/g, "")
+      .trim();
     if (!clean) return;
+
     const lang  = LangService.get();
     const utter = new SpeechSynthesisUtterance(clean);
+
     const _doSpeak = () => {
       const voices = window.speechSynthesis.getVoices();
       let voice = null;
       if (lang === "mr") {
-        voice = voices.find(v => v.lang === "mr-IN") || voices.find(v => v.lang === "hi-IN") || voices.find(v => v.lang === "en-IN") || voices[0] || null;
+        voice =
+          voices.find(v => v.lang === "mr-IN") ||
+          voices.find(v => v.lang === "hi-IN") ||
+          voices.find(v => v.lang.startsWith("mr")) ||
+          voices.find(v => v.lang === "en-IN") ||
+          voices[0] || null;
       } else {
-        voice = voices.find(v => v.lang === "en-IN") || voices.find(v => v.lang === "en-US") || voices.find(v => v.lang.startsWith("en")) || voices[0] || null;
+        voice =
+          voices.find(v => v.lang === "en-IN") ||
+          voices.find(v => v.lang === "en-US") ||
+          voices.find(v => v.lang === "en-GB") ||
+          voices.find(v => v.lang.startsWith("en")) ||
+          voices[0] || null;
       }
       if (voice) utter.voice = voice;
-      utter.lang = lang === "mr" ? "mr-IN" : "en-IN";
-      utter.rate = 1.1; utter.pitch = 1.0; utter.volume = 1.0;
+      utter.lang   = lang === "mr" ? "mr-IN" : "en-IN";
+      utter.rate   = 1.2;
+      utter.pitch  = 1.0;
+      utter.volume = 1.0;
       window.speechSynthesis.speak(utter);
     };
-    if (_voicesReady || window.speechSynthesis.getVoices().length > 0) { _doSpeak(); }
-    else { setTimeout(_doSpeak, 800); }
+
+    if (_voicesReady || window.speechSynthesis.getVoices().length > 0) {
+      _doSpeak();
+    } else {
+      setTimeout(_doSpeak, 800);
+    }
   };
 
   const stopSpeaking = () => { try { window.speechSynthesis?.cancel(); } catch {} };
@@ -226,7 +210,7 @@ const WebSocketService = (() => {
   const WS_URL = window.location.hostname === "localhost" ||
                  window.location.hostname === "127.0.0.1"
     ? "ws://127.0.0.1:8000/ws/chat"
-    : "wss://amravati-sarthi-api.onrender.com/ws/chat";
+    : "wss://amravati-sarthi.onrender.com/ws/chat";
 
   let _socket = null;
   let _timer  = null;
@@ -239,14 +223,27 @@ const WebSocketService = (() => {
     _socket = new WebSocket(WS_URL);
     _socket.onopen    = () => _cbs.onOpen?.();
     _socket.onmessage = (e) => {
-      if (e.data === "__ping__") { try { _socket.send("__pong__"); } catch {} return; }
+      if (e.data === "__ping__") {
+        try { _socket.send("__pong__"); } catch {}
+        return;
+      }
       _cbs.onMessage?.(e.data);
     };
-    _socket.onclose = () => { _cbs.onClose?.(); _timer = setTimeout(_dial, 3000); };
+    _socket.onclose = () => {
+      _cbs.onClose?.();
+      _timer = setTimeout(_dial, 3000);
+    };
     _socket.onerror = () => _socket.close();
   };
 
-  const send    = (payload) => { if (_socket?.readyState === WebSocket.OPEN) { _socket.send(JSON.stringify(payload)); return true; } return false; };
+  const send = (payload) => {
+    if (_socket?.readyState === WebSocket.OPEN) {
+      _socket.send(JSON.stringify(payload));
+      return true;
+    }
+    return false;
+  };
+
   const isReady = () => _socket?.readyState === WebSocket.OPEN;
 
   return { connect, send, isReady };
@@ -278,22 +275,26 @@ const UIController = (() => {
     orbAura:  $("orb-aura"),
     orbLabel: $("orb-label"),
     cssOrb:   $("css-orb"),
-    themeMeta:$("theme-meta"),
-    pwaBtnTx: $("pwa-btn-text"),
   };
 
-  // Dark is default
+  // Dark is default — _isLight tracks whether light mode is ON
   let _isLight   = false;
   let _typingRow = null;
 
+  /* ── Helpers ──────────────────────────────────────────── */
   const nowTime   = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const escHtml   = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const scrollEnd = () => { el.messages.scrollTop = el.messages.scrollHeight; };
 
   const cleanMarkdown = (text) => text
-    .replace(/#{1,6}\s+/g, "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1").replace(/^\s*[-*•]\s+/gm, "• ")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\n{3,}/g, "\n\n").trim();
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
+    .replace(/^\s*[-*•]\s+/gm, "• ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 
   /* ── Gate ─────────────────────────────────────────────── */
   const hideGate = () => {
@@ -302,17 +303,17 @@ const UIController = (() => {
   };
 
   /* ── Theme ────────────────────────────────────────────── */
+  // Dark is default. Clicking toggles to light, then back to dark.
   const applyTheme = () => {
     document.body.classList.toggle("light", _isLight);
     el.themeBtn.textContent = _isLight ? "🌙" : "☀️";
-    // Update theme-color meta for browser chrome
-    if (el.themeMeta) el.themeMeta.setAttribute("content", _isLight ? "#e5e3ff" : "#020008");
   };
   el.themeBtn.addEventListener("click", () => { _isLight = !_isLight; applyTheme(); });
 
   /* ── Language ─────────────────────────────────────────── */
   const applyLang = () => {
     const lang = LangService.get();
+    // Apply Marathi font class to body for lighter weight rendering
     document.body.classList.toggle("lang-mr", lang === "mr");
     el.langLbl.textContent  = LangService.t("toggleLabel");
     el.langBtn.classList.toggle("active-mr", lang === "mr");
@@ -320,7 +321,6 @@ const UIController = (() => {
     el.skipBtn.textContent  = LangService.t("skipLoc");
     el.locBtnTx.textContent = LangService.t("allowLoc");
     if (el.orbLabel) el.orbLabel.textContent = lang === "mr" ? "बोलण्यासाठी दाबा" : "Tap to speak";
-    if (el.pwaBtnTx) el.pwaBtnTx.textContent = LangService.t("installApp");
     const gDesc = document.querySelector(".gate-desc");
     const gNote = document.querySelector(".gate-footnote");
     if (gDesc) gDesc.textContent = LangService.t("gateDesc");
@@ -336,7 +336,7 @@ const UIController = (() => {
     el.sendBtn.disabled    = !online;
   };
 
-  /* ── Orb ──────────────────────────────────────────────── */
+  /* ── Orb state ────────────────────────────────────────── */
   const setOrbListening = (on) => {
     el.orbAura?.classList.toggle("active", on);
     el.cssOrb?.classList.toggle("listening", on);
@@ -352,48 +352,76 @@ const UIController = (() => {
   const _textRow = (text, role) => {
     const row = document.createElement("div");
     row.className = `msg-row ${role}`;
-    const av = document.createElement("div"); av.className = "msg-avatar"; av.textContent = role === "bot" ? "🤖" : "👤";
-    const cnt = document.createElement("div"); cnt.className = "msg-content";
+    const av = document.createElement("div");
+    av.className   = "msg-avatar";
+    av.textContent = role === "bot" ? "🤖" : "👤";
+    const cnt = document.createElement("div");
+    cnt.className = "msg-content";
     if (role === "user") cnt.style.alignItems = "flex-end";
-    const b = document.createElement("div"); b.className = "bubble"; b.textContent = role === "bot" ? cleanMarkdown(text) : text;
-    const ts = document.createElement("span"); ts.className = "msg-time"; ts.textContent = nowTime();
+    const b = document.createElement("div");
+    b.className   = "bubble";
+    b.textContent = role === "bot" ? cleanMarkdown(text) : text;
+    const ts = document.createElement("span");
+    ts.className   = "msg-time";
+    ts.textContent = nowTime();
     cnt.appendChild(b); cnt.appendChild(ts);
     row.appendChild(av); row.appendChild(cnt);
     return row;
   };
 
   const _locationRow = (businesses, aiText) => {
-    const row = document.createElement("div"); row.className = "msg-row bot";
-    const av  = document.createElement("div"); av.className = "msg-avatar"; av.textContent = "🤖";
-    const cnt = document.createElement("div"); cnt.className = "msg-content"; cnt.style.maxWidth = "92%";
+    const row = document.createElement("div");
+    row.className = "msg-row bot";
+    const av = document.createElement("div");
+    av.className   = "msg-avatar";
+    av.textContent = "🤖";
+    const cnt = document.createElement("div");
+    cnt.className  = "msg-content";
+    cnt.style.maxWidth = "92%";
 
     if (aiText?.trim()) {
-      const b = document.createElement("div"); b.className = "bubble"; b.textContent = cleanMarkdown(aiText.trim());
+      const b = document.createElement("div");
+      b.className   = "bubble";
+      b.textContent = cleanMarkdown(aiText.trim());
       cnt.appendChild(b);
     }
 
     const mapId = `map-${Date.now()}`;
-    const mw = document.createElement("div"); mw.className = "map-wrap"; mw.innerHTML = `<div id="${mapId}" class="leaflet-map"></div>`;
+    const mw    = document.createElement("div");
+    mw.className  = "map-wrap";
+    mw.innerHTML  = `<div id="${mapId}" class="leaflet-map"></div>`;
     cnt.appendChild(mw);
 
     requestAnimationFrame(() => {
       const { lat: uLat, lng: uLng } = LocationService.get();
       const centre = businesses[0] ? [businesses[0].lat, businesses[0].lng] : [uLat, uLng];
       const map = L.map(mapId, { zoomControl: true, scrollWheelZoom: false }).setView(centre, 14);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap contributors", maxZoom: 18 }).addTo(map);
-      L.marker([uLat, uLng], { icon: L.divIcon({ className: "", html: `<div class="map-pin user-pin">📍</div>`, iconSize: [28,28], iconAnchor: [14,28] }) }).addTo(map).bindPopup(`<b>${LangService.t("yourLoc")}</b>`);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors", maxZoom: 18,
+      }).addTo(map);
+
+      L.marker([uLat, uLng], {
+        icon: L.divIcon({ className: "", html: `<div class="map-pin user-pin">📍</div>`, iconSize: [28,28], iconAnchor: [14,28] })
+      }).addTo(map).bindPopup(`<b>${LangService.t("yourLoc")}</b>`);
+
       businesses.forEach((b, i) => {
-        L.marker([b.lat, b.lng], { icon: L.divIcon({ className: "", html: `<div class="map-pin biz-pin">${i+1}</div>`, iconSize: [24,24], iconAnchor: [12,24] }) }).addTo(map).bindPopup(
-          `<b>${b.name}</b><br>${b.category}<br>📏 ${b.distance_km} km<br><a href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}" target="_blank" style="color:#818cf8;font-weight:600">Get Directions ↗</a>`
+        L.marker([b.lat, b.lng], {
+          icon: L.divIcon({ className: "", html: `<div class="map-pin biz-pin">${i+1}</div>`, iconSize: [24,24], iconAnchor: [12,24] })
+        }).addTo(map).bindPopup(
+          `<b>${b.name}</b><br>${b.category}<br>📏 ${b.distance_km} km<br>` +
+          `<a href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}" target="_blank" style="color:#818cf8;font-weight:600">Get Directions ↗</a>`
         );
       });
       map.fitBounds([[uLat,uLng], ...businesses.map(b=>[b.lat,b.lng])], { padding:[18,18] });
     });
 
-    const wrap = document.createElement("div"); wrap.className = "location-cards-wrap";
+    const wrap = document.createElement("div");
+    wrap.className = "location-cards-wrap";
     businesses.forEach((b, i) => {
       const { lat: uLat, lng: uLng } = LocationService.get();
-      const c = document.createElement("div"); c.className = "location-card"; c.style.animationDelay = `${i * 0.07}s`;
+      const c = document.createElement("div");
+      c.className = "location-card";
+      c.style.animationDelay = `${i * 0.07}s`;
       c.innerHTML = `
         <div class="lc-header">
           <span class="lc-num">${i+1}</span>
@@ -405,24 +433,32 @@ const UIController = (() => {
         ${b.opening_hours ? `<div class="lc-detail">🕐 ${escHtml(b.opening_hours)}</div>` : ""}
         <div class="lc-footer">
           <span class="lc-dist">📏 ${b.distance_km} km away</span>
-          <a class="lc-dir-btn" href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}" target="_blank" rel="noopener">Get Directions ↗</a>
+          <a class="lc-dir-btn"
+             href="https://www.google.com/maps/dir/${uLat},${uLng}/${b.lat},${b.lng}"
+             target="_blank" rel="noopener">Get Directions ↗</a>
         </div>`;
       wrap.appendChild(c);
     });
 
-    const ts = document.createElement("span"); ts.className = "msg-time"; ts.textContent = nowTime();
+    const ts = document.createElement("span");
+    ts.className = "msg-time"; ts.textContent = nowTime();
     cnt.appendChild(wrap); cnt.appendChild(ts);
     row.appendChild(av); row.appendChild(cnt);
     return row;
   };
 
   const _chips = () => {
-    const wrap = document.createElement("div"); wrap.className = "chips-wrap"; wrap.id = "quick-chips";
+    const wrap = document.createElement("div");
+    wrap.className = "chips-wrap"; wrap.id = "quick-chips";
     LangService.t("chips").forEach(label => {
-      const chip = document.createElement("button"); chip.className = "chip"; chip.textContent = label;
+      const chip = document.createElement("button");
+      chip.className   = "chip";
+      chip.textContent = label;
       chip.addEventListener("click", () => {
         const query = label.replace(/^[\p{Emoji}\s]+/u, "").trim();
-        el.input.value = query; wrap.remove(); sendMessage();
+        el.input.value = query;
+        wrap.remove();
+        sendMessage();
       });
       wrap.appendChild(chip);
     });
@@ -431,26 +467,43 @@ const UIController = (() => {
 
   /* ── Public append ────────────────────────────────────── */
   const appendMessage = (text, role, tts = true) => {
-    el.messages.appendChild(_textRow(text, role)); scrollEnd();
+    el.messages.appendChild(_textRow(text, role));
+    scrollEnd();
     if (tts && role === "bot") VoiceService.speak(text);
   };
+
   const appendLocationRow = (businesses, aiText) => {
-    el.messages.appendChild(_locationRow(businesses, aiText)); scrollEnd();
+    el.messages.appendChild(_locationRow(businesses, aiText));
+    scrollEnd();
     if (aiText) VoiceService.speak(aiText);
   };
+
   const showWelcome = () => {
     appendMessage(LangService.t("welcome"), "bot", false);
-    el.messages.appendChild(_chips()); scrollEnd();
+    el.messages.appendChild(_chips());
+    scrollEnd();
   };
 
   /* ── Typing ───────────────────────────────────────────── */
   const showTyping = () => {
     el.status.textContent = LangService.t("typing");
-    _typingRow = document.createElement("div"); _typingRow.className = "msg-row bot";
-    _typingRow.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-content"><div class="bubble" style="padding:0"><div class="typing-dots"><span></span><span></span><span></span></div></div></div>`;
-    el.messages.appendChild(_typingRow); scrollEnd();
+    _typingRow = document.createElement("div");
+    _typingRow.className = "msg-row bot";
+    _typingRow.innerHTML = `
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-content">
+        <div class="bubble" style="padding:0">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+        </div>
+      </div>`;
+    el.messages.appendChild(_typingRow);
+    scrollEnd();
   };
-  const removeTyping = () => { _typingRow?.remove(); _typingRow = null; el.status.textContent = LangService.t("online"); };
+
+  const removeTyping = () => {
+    _typingRow?.remove(); _typingRow = null;
+    el.status.textContent = LangService.t("online");
+  };
 
   /* ── Send ─────────────────────────────────────────────── */
   const sendMessage = () => {
@@ -462,7 +515,8 @@ const UIController = (() => {
     el.sendBtn.disabled = true;
     const { lat, lng } = LocationService.get();
     WebSocketService.send({ text, lat, lng, lang: LangService.get() });
-    el.input.value = ""; el.input.style.height = "auto";
+    el.input.value = "";
+    el.input.style.height = "auto";
   };
 
   /* ── Incoming ─────────────────────────────────────────── */
@@ -470,33 +524,69 @@ const UIController = (() => {
     removeTyping();
     if (data.startsWith("LOCATIONS:")) {
       const sep = data.indexOf("||");
-      try { appendLocationRow(JSON.parse(data.slice("LOCATIONS:".length, sep)), data.slice(sep + 2)); }
-      catch { appendMessage(data, "bot"); }
-    } else { appendMessage(data, "bot"); }
+      try {
+        appendLocationRow(JSON.parse(data.slice("LOCATIONS:".length, sep)), data.slice(sep + 2));
+      } catch { appendMessage(data, "bot"); }
+    } else {
+      appendMessage(data, "bot");
+    }
     el.sendBtn.disabled = false;
   };
 
-  /* ── Voice ────────────────────────────────────────────── */
+  /* ── Voice orb ────────────────────────────────────────── */
   const initVoice = () => {
     const ok = VoiceService.init({
-      onResult: (transcript) => { el.input.value = transcript; el.input.style.height = "auto"; el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px"; },
-      onEnd:    () => { setOrbListening(false); if (el.input.value.trim()) sendMessage(); },
-      onError:  (err) => { setOrbListening(false); if (err === "not-allowed") appendMessage(LangService.t("micDenied"), "bot", false); },
+      onResult: (transcript) => {
+        el.input.value = transcript;
+        el.input.style.height = "auto";
+        el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px";
+      },
+      onEnd: () => {
+        setOrbListening(false);
+        if (el.input.value.trim()) sendMessage();
+      },
+      onError: (err) => {
+        setOrbListening(false);
+        if (err === "not-allowed") appendMessage(LangService.t("micDenied"), "bot", false);
+      },
     });
-    if (!ok) { if (el.voiceBtn) el.voiceBtn.style.display = "none"; return; }
+
+    if (!ok) {
+      if (el.voiceBtn) el.voiceBtn.style.display = "none";
+      return;
+    }
+
     el.voiceBtn?.addEventListener("click", () => {
-      if (VoiceService.isListening()) { VoiceService.stop(); setOrbListening(false); }
-      else { VoiceService.stopSpeaking(); setOrbListening(true); VoiceService.start(); }
+      if (VoiceService.isListening()) {
+        VoiceService.stop();
+        setOrbListening(false);
+      } else {
+        VoiceService.stopSpeaking();
+        setOrbListening(true);
+        VoiceService.start();
+      }
     });
   };
 
   /* ── Input events ─────────────────────────────────────── */
-  el.input.addEventListener("input", () => { el.input.style.height = "auto"; el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px"; });
-  el.input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  el.input.addEventListener("input", () => {
+    el.input.style.height = "auto";
+    el.input.style.height = Math.min(el.input.scrollHeight, 120) + "px";
+  });
+  el.input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
   el.sendBtn.addEventListener("click", sendMessage);
-  el.clearBtn.addEventListener("click", () => { VoiceService.stopSpeaking(); el.messages.innerHTML = ""; showWelcome(); });
+  el.clearBtn.addEventListener("click", () => {
+    VoiceService.stopSpeaking();
+    el.messages.innerHTML = "";
+    showWelcome();
+  });
 
-  return { hideGate, applyTheme, applyLang, setOnline, showWelcome, handleMessage, initVoice };
+  return {
+    hideGate, applyTheme, applyLang, setOnline,
+    showWelcome, handleMessage, initVoice,
+  };
 })();
 
 
@@ -509,7 +599,10 @@ const UIController = (() => {
   const locTxt   = document.getElementById("loc-btn-text");
 
   const _unlockTTS = () => {
-    if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance(""); u.volume = 0; window.speechSynthesis.speak(u); }
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance(""); u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
   };
 
   const launch = () => {
@@ -526,11 +619,15 @@ const UIController = (() => {
 
   allowBtn.addEventListener("click", async () => {
     _unlockTTS();
-    locTxt.textContent = LangService.t("requesting");
-    allowBtn.disabled  = true;
+    locTxt.textContent  = LangService.t("requesting");
+    allowBtn.disabled   = true;
     await LocationService.request();
     launch();
   });
 
-  skipBtn.addEventListener("click", () => { _unlockTTS(); LocationService.useFallback(); launch(); });
+  skipBtn.addEventListener("click", () => {
+    _unlockTTS();
+    LocationService.useFallback();
+    launch();
+  });
 })();
