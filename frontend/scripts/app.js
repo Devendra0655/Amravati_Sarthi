@@ -326,7 +326,19 @@ const UIController = (() => {
     if (gDesc) gDesc.textContent = LangService.t("gateDesc");
     if (gNote) gNote.textContent = LangService.t("gateNote");
   };
-  el.langBtn.addEventListener("click", () => { LangService.toggle(); applyLang(); });
+
+  el.langBtn.addEventListener("click", () => {
+    LangService.toggle();
+    applyLang();
+
+    // PERMANENT FIX: Auto-translate the welcome message and chips
+    // if the user hasn't started chatting yet.
+    const hasChatHistory = el.messages.querySelectorAll('.msg-row.user').length > 0;
+    if (!hasChatHistory) {
+      el.messages.innerHTML = "";
+      showWelcome();
+    }
+  });
 
   /* ── Connection ───────────────────────────────────────── */
   const setOnline = (online) => {
