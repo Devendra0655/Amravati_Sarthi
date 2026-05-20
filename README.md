@@ -69,6 +69,20 @@ to make civic help accessible for every citizen regardless of language, literacy
 
 ---
 
+
+# 📊 Project Highlights
+
+- 🌐 Bilingual civic assistant for Marathi and English users
+- 📍 Real-time GPS-based nearby service discovery
+- 🧠 AI-powered conversational civic guidance
+- 🗺️ Interactive map integration with live directions
+- 🎙️ Voice-enabled interaction for accessibility
+- ⚡ Real-time communication using WebSockets
+- 🏛️ Built specifically for Amravati smart-city use cases
+- 📦 Lightweight frontend with no heavy frameworks
+
+---
+
 # 📸 Chat Interface
 
 <p align="center">
@@ -84,6 +98,19 @@ to make civic help accessible for every citizen regardless of language, literacy
 </p>
 
 ---
+# 📸 Marathi Language Support
+
+<p align="center">
+  <img src="assets/Marathi-Mode.png" alt="Marathi Mode" width="1000">
+</p>
+
+---
+
+# 📸 Government Scheme Assistance
+
+<p align="center">
+  <img src="assets/Government-Scheme.png" alt="Government Schemes" width="1000">
+</p>
 
 # 🛠️ Tech Stack
 
@@ -99,7 +126,24 @@ to make civic help accessible for every citizen regardless of language, literacy
 | **Frontend Hosting** | Vercel |
 | **Backend Hosting** | Render |
 
+
 ---
+
+# 🗄️ Database Overview
+
+The project uses Supabase PostgreSQL with structured civic datasets:
+
+| Table | Description |
+|---|---|
+| `businesses` | Hospitals, ATMs, pharmacies, restaurants, and civic services |
+| `schemes` | Government schemes with eligibility, benefits, and application guidance |
+
+### Dataset Size
+- 505+ real Amravati business/service records
+- 11+ government schemes integrated
+
+---
+
 
 # 🏗️ System Architecture
 
@@ -136,6 +180,15 @@ to make civic help accessible for every citizen regardless of language, literacy
    - location cards
    - map pins
 10. Speech synthesis reads the response aloud
+---
+
+# 🔒 Privacy & Accessibility
+
+- User location is used only for nearby service recommendations
+- No permanent storage of personal GPS data
+- Voice interaction improves accessibility for semi-literate users
+- Marathi support improves inclusivity for regional citizens
+- Lightweight UI supports low-end devices and slower networks
 
 ---
 
@@ -169,3 +222,38 @@ Amravati_Sarthi/
 ├── vercel.json
 ├── requirements.txt
 └── .env
+```
+---
+# 🔭 Future Scope
+
+- 📱 Mobile application for Android and iOS
+- 💬 WhatsApp integration for wider accessibility
+- 🌐 Support for additional regional languages including Hindi
+- 🏛️ Integration with live government APIs and civic databases
+- 📢 Push notifications for emergency alerts and scheme deadlines
+- 🧾 AI-powered grievance registration and tracking
+- 🏪 Business owner self-registration portal
+- 📶 Offline mode for low-connectivity rural areas
+- 📊 Smart city analytics dashboard for authorities
+- 🤝 Integration with municipal departments and smart-city infrastructure
+
+---
+
+# 🚧 Known Limitations
+
+- Currently optimized specifically for Amravati district
+- Voice recognition depends on browser compatibility
+- Nearby services require GPS permission
+- Government data updates are manually maintained
+- Offline functionality is limited in the current version
+
+---
+
+# 📬 Contact
+
+### Team: The Overfitters
+
+- GitHub: https://github.com/Devendra0655
+- Live Link: https://amravati-sarthi.vercel.app
+
+---
