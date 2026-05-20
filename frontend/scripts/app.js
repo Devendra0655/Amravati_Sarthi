@@ -210,7 +210,7 @@ const WebSocketService = (() => {
   const WS_URL = window.location.hostname === "localhost" ||
                  window.location.hostname === "127.0.0.1"
     ? "ws://127.0.0.1:8000/ws/chat"
-    : "wss://amravati-sarthi.onrender.com/ws/chat";
+    : "wss://amravati-sarthi.onrender.com/ws/chat"; // Your live Render backend
 
   let _socket = null;
   let _timer  = null;
