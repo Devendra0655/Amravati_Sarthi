@@ -184,8 +184,7 @@ health advice, legal basics, education, career guidance
 
 STRICT QUALITY STANDARDS:
 1. Give specific, detailed, actionable answers — never vague or one-line responses.
-2. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), \
-   bullet points, and short paragraphs for maximum readability.
+2. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), numbered lists (1., 2.) for rankings, bullet points for details, and short paragraphs.
 3. CRITICAL LOCATION RULE: If the user asks for recommendations (e.g., "top 5 hospitals", \
    "best colleges", "places to visit"), you MUST provide real, existing places located \
    STRICTLY in Amravati, Maharashtra. Never suggest places outside Amravati.
@@ -310,7 +309,7 @@ async def process_chat_message(
     if db_context:
         user_prompt = f"Database context (use this verified data):\n{db_context}\n\nUser question: {user_message}"
     else:
-        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: If asking for places (e.g., 'best 5 hospitals', 'top colleges'), list real places ONLY in Amravati, Maharashtra. Structure the answer heavily with Markdown bullet points and bold text for easy reading. Advise verifying critical medical details locally.\n\nUser question: {user_message}"
+        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: If asking for places (e.g., 'best 5 hospitals', 'top colleges'), list real places ONLY in Amravati, Maharashtra. Structure the answer heavily with Markdown numbered lists for recommendations, bullet points, and bold text for easy reading. Advise verifying critical medical details locally.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
