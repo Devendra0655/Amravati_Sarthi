@@ -45,23 +45,18 @@ const LangService = (() => {
       typing:       "Sarthi is thinking…",
       welcome:      "नमस्कार! I'm Amravati Sarthi. 🙏\n\nI'm your AI-powered city guide for Amravati, Maharashtra. Ask me about government schemes, nearby hospitals, restaurants, civic services — anything at all!",
       chips: [
-        "🏥 Hospitals near me",
-        "💊 Pharmacy near me",
-        "🏦 ATM near me",
-        "🌾 PM-KISAN scheme",
-        "👩 Ladki Bahin Yojana",
-        "🍽️ Restaurants nearby",
-        "🚨 Emergency numbers",
-        "🏛️ Government offices",
+        "🏥 Hospitals near me", "💊 Pharmacy near me", "🏦 ATM near me",
+        "🌾 PM-KISAN scheme", "👩 Ladki Bahin Yojana", "🍽️ Restaurants nearby",
+        "🚨 Emergency numbers", "🏛️ Government offices",
       ],
       micDenied:    "Microphone access was denied. Please allow it in your browser settings and try again.",
       yourLoc:      "Your Location",
       noResults:    "No nearby results found. Try a broader search term.",
-      toggleLabel:  "मराठी",
+      toggleLabel:  "मराठी", // Shows next language to switch to
       skipLoc:      "Continue without location",
       allowLoc:     "Share My Location & Start",
       requesting:   "Requesting location…",
-      gateDesc:     "AI-powered help for government schemes, nearby services & civic info — in Marathi & English.",
+      gateDesc:     "AI-powered help for government schemes, nearby services & civic info — in Marathi, Hindi & English.",
       gateNote:     "Location is used only to find services near you and is never stored on our servers.",
     },
     mr: {
@@ -71,31 +66,48 @@ const LangService = (() => {
       typing:       "सारथी विचार करत आहे…",
       welcome:      "नमस्कार! मी अमरावती सारथी आहे. 🙏\n\nमी अमरावती शहराचा AI-चालित मार्गदर्शक आहे. सरकारी योजना, जवळचे रुग्णालय, रेस्टॉरंट, नागरी सेवा — काहीही विचारा!",
       chips: [
-        "🏥 जवळचे रुग्णालय",
-        "💊 जवळची फार्मसी",
-        "🏦 जवळचे ATM",
-        "🌾 PM-KISAN योजना",
-        "👩 लाडकी बहीण योजना",
-        "🍽️ जवळचे रेस्टॉरंट",
-        "🚨 आपत्कालीन क्रमांक",
-        "🏛️ सरकारी कार्यालये",
+        "🏥 जवळचे रुग्णालय", "💊 जवळची फार्मसी", "🏦 जवळचे ATM",
+        "🌾 PM-KISAN योजना", "👩 लाडकी बहीण योजना", "🍽️ जवळचे रेस्टॉरंट",
+        "🚨 आपत्कालीन क्रमांक", "🏛️ सरकारी कार्यालये",
       ],
-      micDenied:    "मायक्रोफोन परवानगी नाकारली गेली. कृपया ब्राउझर सेटिंग्जमध्ये परवानगी द्या आणि पुन्हा प्रयत्न करा.",
+      micDenied:    "मायक्रोफोन परवानगी नाकारली गेली. कृपया ब्राउझर सेटिंग्जमध्ये परवानगी द्या.",
       yourLoc:      "तुमचे स्थान",
       noResults:    "जवळपास परिणाम सापडले नाहीत. वेगळ्या शब्दात शोधा.",
-      toggleLabel:  "ENG",
+      toggleLabel:  "हिंदी", // Shows next language to switch to
       skipLoc:      "स्थानाशिवाय सुरू करा",
       allowLoc:     "माझे स्थान सामायिक करा आणि सुरू करा",
       requesting:   "स्थान शोधत आहे…",
-      gateDesc:     "सरकारी योजना, जवळच्या सेवा आणि नागरी माहितीसाठी AI-चालित मदत — मराठी आणि इंग्रजीत.",
+      gateDesc:     "सरकारी योजना, जवळच्या सेवा आणि नागरी माहितीसाठी AI-चालित मदत — मराठी, हिंदी आणि इंग्रजीत.",
       gateNote:     "स्थान फक्त जवळच्या सेवा शोधण्यासाठी वापरले जाते आणि कधीही संग्रहित केले जात नाही.",
     },
+    hi: {
+      placeholder:  "अमरावती के बारे में कुछ भी पूछें…",
+      online:       "ऑनलाइन · मदद के लिए तैयार",
+      reconnecting: "पुनः कनेक्ट हो रहा है…",
+      typing:       "सारथी सोच रहा है…",
+      welcome:      "नमस्ते! मैं अमरावती सारथी हूँ। 🙏\n\nमैं आपका AI-संचालित सिटी गाइड हूँ। सरकारी योजनाओं, नजदीकी अस्पतालों, रेस्तरां, या नागरिक सेवाओं के बारे में कुछ भी पूछें!",
+      chips: [
+        "🏥 मेरे पास अस्पताल", "💊 नजदीकी फार्मेसी", "🏦 नजदीकी एटीएम",
+        "🌾 पीएम-किसान योजना", "👩 लाडकी बहिन योजना", "🍽️ नजदीकी रेस्तरां",
+        "🚨 आपातकालीन नंबर", "🏛️ सरकारी कार्यालय",
+      ],
+      micDenied:    "माइक्रोफ़ोन एक्सेस अस्वीकार कर दिया गया। कृपया अनुमति दें।",
+      yourLoc:      "आपका स्थान",
+      noResults:    "कोई नजदीकी परिणाम नहीं मिला।",
+      toggleLabel:  "ENG", // Shows next language to switch to
+      skipLoc:      "स्थान के बिना जारी रखें",
+      allowLoc:     "मेरा स्थान साझा करें और शुरू करें",
+      requesting:   "स्थान का अनुरोध किया जा रहा है…",
+      gateDesc:     "सरकारी योजनाओं, नजदीकी सेवाओं और नागरिक जानकारी के लिए AI-संचालित सहायता — मराठी, हिंदी और अंग्रेजी में।",
+      gateNote:     "स्थान का उपयोग केवल आपके आस-पास की सेवाएं खोजने के लिए किया जाता है।",
+    }
   };
 
   const get    = () => _lang;
   const t      = (key) => STRINGS[_lang][key] ?? STRINGS["en"][key] ?? key;
-  const toggle = () => { _lang = _lang === "en" ? "mr" : "en"; };
-  const set    = (l)  => { if (l === "en" || l === "mr") _lang = l; };
+  // 3-way cycle: en -> mr -> hi -> en
+  const toggle = () => { _lang = _lang === "en" ? "mr" : (_lang === "mr" ? "hi" : "en"); };
+  const set    = (l)  => { if (l === "en" || l === "mr" || l === "hi") _lang = l; };
 
   return { get, t, toggle, set };
 })();
@@ -142,7 +154,8 @@ const VoiceService = (() => {
 
   const start = () => {
     if (!_recognition || _isListening) return;
-    _recognition.lang = LangService.get() === "mr" ? "mr-IN" : "en-US";
+    const lang = LangService.get();
+    _recognition.lang = lang === "mr" ? "mr-IN" : (lang === "hi" ? "hi-IN" : "en-US");
     try { _recognition.start(); _isListening = true; } catch (e) { console.warn("STT:", e); }
   };
 
@@ -313,14 +326,14 @@ const UIController = (() => {
   /* ── Language ─────────────────────────────────────────── */
   const applyLang = () => {
     const lang = LangService.get();
-    // Apply Marathi font class to body for lighter weight rendering
     document.body.classList.toggle("lang-mr", lang === "mr");
+    document.body.classList.toggle("lang-hi", lang === "hi");
     el.langLbl.textContent  = LangService.t("toggleLabel");
-    el.langBtn.classList.toggle("active-mr", lang === "mr");
+    el.langBtn.className = `tb-btn lang-btn active-${lang}`;
     el.input.placeholder    = LangService.t("placeholder");
     el.skipBtn.textContent  = LangService.t("skipLoc");
     el.locBtnTx.textContent = LangService.t("allowLoc");
-    if (el.orbLabel) el.orbLabel.textContent = lang === "mr" ? "बोलण्यासाठी दाबा" : "Tap to speak";
+    if (el.orbLabel) el.orbLabel.textContent = lang === "mr" ? "बोलण्यासाठी दाबा" : (lang === "hi" ? "बोलने के लिए टैप करें" : "Tap to speak");
     const gDesc = document.querySelector(".gate-desc");
     const gNote = document.querySelector(".gate-footnote");
     if (gDesc) gDesc.textContent = LangService.t("gateDesc");
@@ -330,9 +343,7 @@ const UIController = (() => {
   el.langBtn.addEventListener("click", () => {
     LangService.toggle();
     applyLang();
-
-    // PERMANENT FIX: Auto-translate the welcome message and chips
-    // if the user hasn't started chatting yet.
+    
     const hasChatHistory = el.messages.querySelectorAll('.msg-row.user').length > 0;
     if (!hasChatHistory) {
       el.messages.innerHTML = "";

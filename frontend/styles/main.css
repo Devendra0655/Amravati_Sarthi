@@ -214,6 +214,7 @@ body {
 .tb-btn:active { transform:scale(0.95); }
 .lang-btn { min-width:56px; font-family:var(--f-dv); font-size:0.78rem; }
 .lang-btn.active-mr { background:var(--indigo-mist); border-color:var(--indigo); color:var(--indigo-lt); }
+.lang-btn.active-hi { background:rgba(34,211,238,0.1); border-color:var(--cyan); color:var(--cyan-lt); }
 .tb-conn  { display:flex; align-items:center; gap:0.35rem; font-size:0.58rem; color:var(--txt-3); flex-shrink:0; }
 .conn-dot { width:7px; height:7px; border-radius:50%; background:var(--red); transition:background 0.4s,box-shadow 0.4s; }
 .conn-dot.online { background:var(--green); box-shadow:0 0 0 3px rgba(16,185,129,0.15),0 0 8px rgba(16,185,129,0.5); animation:connPulse 2.5s ease-in-out infinite; }

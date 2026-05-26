@@ -101,6 +101,17 @@ _EMERGENCY = {
         "• शासकीय रुग्णालय अमरावती: 0721-2662100\n"
         "• सर्व आपत्कालीन सेवा: 112"
     ),
+    "hi": (
+        "🚨 आपातकालीन संपर्क — अमरावती\n\n"
+        "• पुलिस: 100 | अमरावती नियंत्रण कक्ष: 0721-2662100\n"
+        "• एम्बुलेंस: 108 (मुफ्त, 24×7)\n"
+        "• दमकल: 101 | अमरावती: 0721-2570101\n"
+        "• महिला हेल्पलाइन: 1091\n"
+        "• बाल हेल्पलाइन: 1098\n"
+        "• आपदा प्रबंधन: 1070\n"
+        "• सिविल अस्पताल अमरावती: 0721-2662100\n"
+        "• सभी आपातकालीन सेवाएं: 112"
+    ),
 }
 
 # ── Fallback mock businesses (used when DB is down) ───────────────────────────
@@ -139,14 +150,19 @@ def _get_mock_businesses(hint: str) -> list:
 # ── System prompts ────────────────────────────────────────────────────────────
 _LANG_RULE = {
     "en": (
-        "MANDATORY LANGUAGE RULE: Your entire response must be in grammatically correct, "
-        "clear English only. Do not use any Marathi words or Devanagari script. "
-        "Use simple, accessible language that any citizen can understand."
+        "MANDATORY LANGUAGE RULE: The user might type in a mix of English, Hindi, or Marathi. "
+        "Understand their core intent, but your ENTIRE response MUST be in grammatically correct, "
+        "clear English only. Do not use any Marathi or Hindi words."
     ),
     "mr": (
-        "अनिवार्य भाषा नियम: तुमचे संपूर्ण उत्तर केवळ शुद्ध, व्याकरणदृष्ट्या अचूक मराठीत असावे. "
-        "कोणतेही इंग्रजी शब्द किंवा वाक्ये वापरू नका. "
-        "प्रत्येक नागरिकाला सहज समजेल अशा साध्या मराठी भाषेत उत्तर द्या."
+        "अनिवार्य भाषा नियम: वापरकर्ता कदाचित इंग्रजी, हिंदी किंवा मराठी मिश्रित भाषेत टाईप करेल. "
+        "त्यांचा उद्देश समजून घ्या, परंतु तुमचे संपूर्ण उत्तर केवळ शुद्ध, व्याकरणदृष्ट्या अचूक मराठीत असावे. "
+        "कोणतेही इंग्रजी किंवा हिंदी शब्द वापरू नका."
+    ),
+    "hi": (
+        "अनिवार्य भाषा नियम: उपयोगकर्ता अंग्रेजी, हिंदी या मराठी मिश्रित भाषा में टाइप कर सकता है। "
+        "उनके इरादे को समझें, लेकिन आपका पूरा उत्तर केवल शुद्ध, व्याकरणिक रूप से सही हिंदी में होना चाहिए। "
+        "किसी भी अंग्रेजी या मराठी शब्दों का उपयोग न करें। आसान और सुलभ भाषा का प्रयोग करें।"
     ),
 }
 
@@ -181,10 +197,16 @@ STRICT QUALITY STANDARDS:
 
 _SYSTEM_LOC = """\
 You are "Amravati Sarthi", a smart city assistant for Amravati, Maharashtra.
-The user is searching for nearby services. Real business data is provided below.
-Write a natural, helpful 1-2 sentence summary: state how many results were found \
-and mention the name and distance of the closest one. Be warm and friendly.
-The UI shows full details — do not list all results.
+The user is searching for nearby services. Real local business data is provided below.
+
+INSTRUCTIONS:
+1. If the user asks for a specific specialty (e.g., "heart hospital", "best restaurant", "children's doctor"): 
+   - Analyze the provided results and recommend the one that best matches their specific need based on its name or category.
+   - Briefly explain *why* you are recommending it (e.g., "Since you need a heart specialist, I recommend...").
+2. If it is a general request (e.g., "hospitals near me"):
+   - Simply recommend the closest one.
+3. Keep your response warm, helpful, and brief (2-3 sentences). 
+The UI will plot them on the map automatically, so do not list all the results.
 
 {lang_rule}"""
 
@@ -281,10 +303,10 @@ async def process_chat_message(
                 for s in schemes
             )
 
-    user_prompt = (
-        f"Database context (use if relevant):\n{db_context}\n\nUser question: {user_message}"
-        if db_context else user_message
-    )
+    if db_context:
+        user_prompt = f"Database context (use this verified data):\n{db_context}\n\nUser question: {user_message}"
+    else:
+        user_prompt = f"The requested data is not in the local Amravati database. Provide a helpful, accurate answer based on your general AI training. If it is a critical medical or civic issue, politely advise the user to verify locally.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
