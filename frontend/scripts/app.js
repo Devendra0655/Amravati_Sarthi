@@ -299,15 +299,15 @@ const UIController = (() => {
   const escHtml   = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const scrollEnd = () => { el.messages.scrollTop = el.messages.scrollHeight; };
 
-  const cleanMarkdown = (text) => text
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
-    .replace(/^\s*[-*•]\s+/gm, "• ")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  const cleanMarkdown = (text) => {
+    let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Security
+    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); // Bold text
+    html = html.replace(/^#{1,6}\s+(.*)/gm, "<strong style='font-size:1.15em; color:var(--cyan);'>$1</strong>"); // Colored Headings
+    html = html.replace(/^\s*[-*•]\s+/gm, "&nbsp;&nbsp;• "); // Indent bullets
+    html = html.replace(/^\s*(\d+\.)\s+/gm, "&nbsp;&nbsp;$1 "); // Indent numbers
+    html = html.replace(/\n{3,}/g, "\n\n"); // Fix excessive gaps
+    return html.trim();
+  };
 
   /* ── Gate ─────────────────────────────────────────────── */
   const hideGate = () => {
@@ -383,7 +383,11 @@ const UIController = (() => {
     if (role === "user") cnt.style.alignItems = "flex-end";
     const b = document.createElement("div");
     b.className   = "bubble";
-    b.textContent = role === "bot" ? cleanMarkdown(text) : text;
+    if (role === "bot") {
+      b.innerHTML = cleanMarkdown(text);
+    } else {
+      b.textContent = text;
+    }
     const ts = document.createElement("span");
     ts.className   = "msg-time";
     ts.textContent = nowTime();
@@ -405,7 +409,7 @@ const UIController = (() => {
     if (aiText?.trim()) {
       const b = document.createElement("div");
       b.className   = "bubble";
-      b.textContent = cleanMarkdown(aiText.trim());
+      b.innerHTML = cleanMarkdown(aiText.trim());
       cnt.appendChild(b);
     }
 
