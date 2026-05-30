@@ -311,17 +311,22 @@ async def process_chat_message(
 
     User question: {user_message}
 
-    CRITICAL INSTRUCTIONS:
-    1. INTENT MATCH: Answer exactly what the user asked based on their needs. 
-    2. AMRAVATI PLACES: If the user asks for a real place in Amravati (e.g., Sipna College, Ram Meghe, RIMS, Grecko), ignore irrelevant context. Give details and MUST use this map format: [📍 Get Directions](https://www.google.com/maps/search/[Place+Name+Amravati])
-    3. OUTSIDE/GENERAL: If the request is about a place NOT in Amravati, or general knowledge, answer the question helpfully, but DO NOT generate any map links.
-    4. NO FLUFF. NO PREAMBLE."""
+    CRITICAL INSTRUCTIONS - USE COMMON SENSE:
+    1. LOGIC & INTENT: Answer the user intelligently based on reality. If they ask for family weekend spots, suggest actual parks or tourist spots (like Wadali Talao or Bamboo Garden). DO NOT suggest hospitals, colleges, or random buildings for leisure.
+    2. AMRAVATI ONLY: Only recommend real places located in Amravati district. If they ask for something that doesn't exist here (like a beach), politely say so.
+    3. STRICT MAP LINKS: For EVERY single physical place you list, you MUST append a clickable map link immediately after its name using this exact format:
+       [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=INSERT_PLACE_NAME+Amravati)
+    4. FORMATTING: Use clean lists. NO fluff. NEVER tell the user to "search online for directions."
+    """
     else:
         user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
-    1. INTENT MATCH: Answer exactly what the user asked based on their needs.
-    2. AMRAVATI PLACES: If they ask for a place in Amravati (e.g., Ram Meghe, Grecko, RIMS), provide the info and MUST use this map format: [📍 Get Directions](https://www.google.com/maps/search/[Place+Name+Amravati])
-    3. OUTSIDE/GENERAL: If they ask for something NOT in Amravati (like a beach, another city), or a general question, answer them helpfully but DO NOT generate any map links.
-    4. FORMATTING: Use Markdown numbered lists, bullet points, and bold text. NO FLUFF.
+
+    CRITICAL INSTRUCTIONS - USE COMMON SENSE:
+    1. LOGIC & INTENT: Answer intelligently based on reality. If the user asks for weekend trips, suggest actual tourist spots. DO NOT suggest hospitals or colleges for leisure.
+    2. AMRAVATI ONLY: Only recommend real places in Amravati district. If they ask for something that doesn't exist here (like a beach), politely explain that Amravati is landlocked.
+    3. STRICT MAP LINKS: For EVERY single physical place you list, you MUST append a clickable map link immediately after its name using this exact format:
+       [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=INSERT_PLACE_NAME+Amravati)
+    4. FORMATTING: Use clean numbered lists. NO fluff. NEVER tell the user to "search online for directions."
 
     User question: {user_message}"""
 
