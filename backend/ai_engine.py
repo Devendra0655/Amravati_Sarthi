@@ -186,10 +186,8 @@ STRICT QUALITY STANDARDS:
 1. NO FLUFF: Answer ONLY what is explicitly asked. Zero preamble, zero conversational filler, and no unrequested explanations.
 2. STRICT INTENT MATCHING: If the user asks for physical locations (e.g., "hospitals"), you MUST list the actual physical places. If the provided database context only contains phone numbers, ignore the context and use your AI training to list the real places.
 3. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), numbered lists (1., 2.) for rankings, bullet points for details, and short paragraphs.
-4. CRITICAL LOCATION RULE: If the user asks for recommendations (e.g., "top 5 hospitals", \
-   "best colleges", "places to visit"), you MUST provide real, existing places located \
-   STRICTLY in Amravati, Maharashtra. Never suggest places outside Amravati.
-5. DIRECTIONS RULE: For every specific place you recommend, you MUST append a clickable Google Maps link using this exact markdown format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME_HERE+Amravati)
+4. LOCATION BOUNDARY: You only provide places in Amravati. If the user asks for something outside Amravati (like beaches, snow, or foreign cities), politely explain it doesn't exist here and DO NOT generate any map links.
+5. DIRECTIONS RULE: ONLY append the clickable Google Maps link [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) when the user EXPLICITLY asks for recommendations, places to visit, or direct locations. Do NOT append links for general informational mentions.
 6. For scheme queries: always include eligibility criteria, exact documents required, \
    where and how to apply, processing timeline, and benefit amount.
 7. For general queries: answer completely as a knowledgeable expert would.
@@ -313,10 +311,14 @@ async def process_chat_message(
 
     User question: {user_message}
 
-    CRITICAL OVERRIDE: If the user explicitly asks for physical buildings (e.g., hospitals, colleges) but the context above ONLY contains phone numbers, ignore the context. Instead, list real physical places in Amravati and append this link format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME)
-    Otherwise, answer normally based ONLY on the database context. NO FLUFF."""
+    CRITICAL OVERRIDE: If the user explicitly asks for physical buildings (e.g., hospitals) but the context above ONLY contains phone numbers, ignore the context. List real physical places in Amravati. ONLY append the link format [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) if they specifically ask for directions or recommendations. If they ask for something not in Amravati, politely refuse WITHOUT adding links. Otherwise, answer normally based ONLY on the database context. NO FLUFF."""
     else:
-        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this EXACT format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
+        user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
+    1. LOCATION BOUNDARY: You only provide places in Amravati. If the user asks for something outside Amravati (like a beach or another city), politely explain it doesn't exist here and DO NOT generate any map links.
+    2. DIRECTIONS RULE: ONLY append the map link [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) when the user specifically asks for recommendations, places to visit, or directions.
+    3. FORMATTING: Use Markdown numbered lists, bullet points, and bold text. NO FLUFF.
+
+    User question: {user_message}"""
 
     try:
         return await _llm(
