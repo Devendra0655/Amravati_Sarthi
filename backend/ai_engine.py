@@ -307,10 +307,17 @@ async def process_chat_message(
                 for s in schemes
             )
 
-    if db_context:
-        user_prompt = f"Database context (use this verified data):\n{db_context}\n\nUser question: {user_message}"
-    else:
-        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this EXACT format: [📍 Get Directions](http://google.com/maps/search/?api=1&query=Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
+        # Defensive Prompt Construction to prevent Vector DB hijacking
+        if db_context:
+            user_prompt = f"""\
+    CRITICAL INSTRUCTION: Analyze the user's question. If the user is asking for physical locations/places (like hospitals, colleges, hotels) but the provided Database Context below ONLY contains phone numbers or helplines, you MUST completely ignore the Database Context and answer using your general AI training data to list real places in Amravati.
+
+    Database context (use ONLY if it actually answers the specific intent of the question):
+    {db_context}
+
+    User question: {user_message}"""
+        else:
+            user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this EXACT format: [📍 Get Directions](http://google.com/maps/search/?api=1&query=Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
