@@ -306,29 +306,30 @@ async def process_chat_message(
             )
 
     if db_context:
-        user_prompt = f"""Database context (use this verified data):
+        user_prompt = f"""[DATABASE CONTEXT]
     {db_context}
 
-    User question: {user_message}
+    [USER QUESTION]
+    {user_message}
 
-    CRITICAL INSTRUCTIONS - USE COMMON SENSE:
-    1. LOGIC & INTENT: Answer the user intelligently based on reality. If they ask for family weekend spots, suggest actual parks or tourist spots (like Wadali Talao or Bamboo Garden). DO NOT suggest hospitals, colleges, or random buildings for leisure.
-    2. AMRAVATI ONLY: Only recommend real places located in Amravati district. If they ask for something that doesn't exist here (like a beach), politely say so.
-    3. STRICT MAP LINKS: For EVERY single physical place you list, you MUST append a clickable map link immediately after its name using this exact format:
-       [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=INSERT_PLACE_NAME+Amravati)
-    4. FORMATTING: Use clean lists. NO fluff. NEVER tell the user to "search online for directions."
+    [CRITICAL INSTRUCTIONS]
+    1. IGNORE IRRELEVANT DATA: If the context above does not match what the user asked for (e.g., they asked for a specific college/tourist spot, but the context shows hospitals), YOU MUST IGNORE THE CONTEXT.
+    2. DO NOT MENTION WRONG DATA: If you ignore the context, DO NOT say "I found a hospital instead." Just answer their question naturally using your own general knowledge of Amravati.
+    3. THE KILL-SWITCH PHRASE: If the context was irrelevant or the place doesn't exist (like a beach), you MUST include the exact phrase "Not in the nearby map results" in your response. This is a technical requirement.
+    4. MANDATORY LINKS: For EVERY physical place you list, you MUST append a clickable link using this EXACT format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
+    (Replace Place+Name with the actual place). NEVER tell the user to "search online." NO FLUFF.
     """
     else:
         user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
 
-    CRITICAL INSTRUCTIONS - USE COMMON SENSE:
-    1. LOGIC & INTENT: Answer intelligently based on reality. If the user asks for weekend trips, suggest actual tourist spots. DO NOT suggest hospitals or colleges for leisure.
-    2. AMRAVATI ONLY: Only recommend real places in Amravati district. If they ask for something that doesn't exist here (like a beach), politely explain that Amravati is landlocked.
-    3. STRICT MAP LINKS: For EVERY single physical place you list, you MUST append a clickable map link immediately after its name using this exact format:
-       [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=INSERT_PLACE_NAME+Amravati)
-    4. FORMATTING: Use clean numbered lists. NO fluff. NEVER tell the user to "search online for directions."
+    [CRITICAL INSTRUCTIONS]
+    1. AMRAVATI ONLY: Only recommend real places in Amravati. If they ask for something that doesn't exist (like a beach), politely explain that Amravati is landlocked.
+    2. THE KILL-SWITCH PHRASE: If you are refusing a request (like a beach), you MUST include the exact phrase "Not in the nearby map results".
+    3. MANDATORY LINKS: For EVERY place you list, you MUST append a clickable link using this EXACT format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
+    (Replace Place+Name with the actual place). NEVER tell the user to "search online." NO FLUFF.
 
-    User question: {user_message}"""
+    [USER QUESTION]
+    {user_message}"""
 
     try:
         return await _llm(
