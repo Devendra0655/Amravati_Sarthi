@@ -163,9 +163,13 @@ const VoiceService = (() => {
   const isListening = () => _isListening;
 
   const speak = (text) => {
+    // 1. Instantly kill the voice support if the language is Hindi
+    if (LangService.get() === "hi") return;
+
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
 
+    // Clean markdown before speaking
     const clean = text
       .replace(/[\u{1F300}-\u{1FFFF}]/gu, "")
       .replace(/\*+/g, "")
@@ -180,24 +184,31 @@ const VoiceService = (() => {
     const _doSpeak = () => {
       const voices = window.speechSynthesis.getVoices();
       let voice = null;
+
       if (lang === "mr") {
+        // 2. STRICT MARATHI LOCK: Only use pure mr-IN or hi-IN voices.
+        // No English fallback. If a native voice isn't found, stay completely silent.
         voice =
           voices.find(v => v.lang === "mr-IN") ||
           voices.find(v => v.lang === "hi-IN") ||
-          voices.find(v => v.lang.startsWith("mr")) ||
-          voices.find(v => v.lang === "en-IN") ||
-          voices[0] || null;
+          voices.find(v => v.lang.startsWith("mr"));
+
+        if (!voice) return; // Prevents the weird English accent entirely
+
+        utter.voice = voice;
+        utter.lang = voice.lang;
       } else {
+        // English routing
         voice =
           voices.find(v => v.lang === "en-IN") ||
           voices.find(v => v.lang === "en-US") ||
           voices.find(v => v.lang === "en-GB") ||
-          voices.find(v => v.lang.startsWith("en")) ||
-          voices[0] || null;
+          voices[0];
+        if (voice) utter.voice = voice;
+        utter.lang = "en-IN";
       }
-      if (voice) utter.voice = voice;
-      utter.lang   = lang === "mr" ? "mr-IN" : "en-IN";
-      utter.rate   = 1.2;
+
+      utter.rate   = 1.0; // Slowed down slightly for much clearer Marathi pronunciation
       utter.pitch  = 1.0;
       utter.volume = 1.0;
       window.speechSynthesis.speak(utter);
