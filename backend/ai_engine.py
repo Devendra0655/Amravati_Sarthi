@@ -183,18 +183,19 @@ health advice, legal basics, education, career guidance
 - Step-by-step guidance for government processes, applications, documentation
 
 STRICT QUALITY STANDARDS:
-1. Give specific, detailed, actionable answers — never vague or one-line responses.
-2. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), numbered lists (1., 2.) for rankings, bullet points for details, and short paragraphs.
-3. CRITICAL LOCATION RULE: If the user asks for recommendations (e.g., "top 5 hospitals", \
+1. NO FLUFF: Answer ONLY what is explicitly asked. Zero preamble, zero conversational filler, and no unrequested explanations.
+2. Give specific, detailed, actionable answers — never vague or one-line responses.
+3. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), numbered lists (1., 2.) for rankings, bullet points for details, and short paragraphs.
+4. CRITICAL LOCATION RULE: If the user asks for recommendations (e.g., "top 5 hospitals", \
    "best colleges", "places to visit"), you MUST provide real, existing places located \
    STRICTLY in Amravati, Maharashtra. Never suggest places outside Amravati.
-4. For scheme queries: always include eligibility criteria, exact documents required, \
+5. DIRECTIONS RULE: For every specific place you recommend, you MUST append a clickable Google Maps link using this exact markdown format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Exact+Name+Of+Place,+Amravati)
+6. For scheme queries: always include eligibility criteria, exact documents required, \
    where and how to apply, processing timeline, and benefit amount.
-5. For general queries: answer completely as a knowledgeable expert would.
-6. Use exact figures: amounts (e.g., "Rs. 6,000 per year in 3 instalments of Rs. 2,000 each"), \
-   dates, percentages — be precise.
-7. Proofread your response for grammar and spelling before outputting.
-8. If the database context provided is relevant, incorporate it accurately.
+7. For general queries: answer completely as a knowledgeable expert would.
+8. Use exact figures: amounts, dates, percentages — be precise.
+9. Proofread your response for grammar and spelling before outputting.
+10. If the database context provided is relevant, incorporate it accurately.
 
 {lang_rule}"""
 
@@ -309,7 +310,7 @@ async def process_chat_message(
     if db_context:
         user_prompt = f"Database context (use this verified data):\n{db_context}\n\nUser question: {user_message}"
     else:
-        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: If asking for places (e.g., 'best 5 hospitals', 'top colleges'), list real places ONLY in Amravati, Maharashtra. Structure the answer heavily with Markdown numbered lists for recommendations, bullet points, and bold text for easy reading. Advise verifying critical medical details locally.\n\nUser question: {user_message}"
+        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a Google Maps link: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name,+Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
