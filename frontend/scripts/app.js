@@ -168,7 +168,7 @@ const VoiceService = (() => {
 
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    
+
     // Aggressively clean text before speaking so it only reads the actual answers
     const clean = text
       .replace(/\[📍 Get Directions\]\(.*?\)/g, "") // Instantly delete map links from audio
@@ -317,7 +317,8 @@ const UIController = (() => {
     let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Security
 
     // NEW: Convert Markdown links to clickable HTML links that open in a new tab
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<a href='$2' target='_blank' style='color:var(--cyan); text-decoration:underline;'>$1</a>");
+    // NEW: Convert Markdown links to sleek, clickable UI buttons
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<a href='$2' target='_blank' style='display:inline-block; margin-left:6px; margin-top:4px; padding:4px 12px; background:rgba(0, 255, 255, 0.1); border:1px solid var(--cyan); border-radius:20px; color:var(--cyan); text-decoration:none; font-size:0.85em; font-weight:bold;'>$1 ↗</a>");
 
     html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); // Bold text
     html = html.replace(/^#{1,6}\s+(.*)/gm, "<strong style='font-size:1.15em; color:var(--cyan);'>$1</strong>"); // Colored Headings

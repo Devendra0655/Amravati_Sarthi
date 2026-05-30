@@ -184,7 +184,7 @@ health advice, legal basics, education, career guidance
 
 STRICT QUALITY STANDARDS:
 1. NO FLUFF: Answer ONLY what is explicitly asked. Zero preamble, zero conversational filler, and no unrequested explanations.
-2. Give specific, detailed, actionable answers — never vague or one-line responses.
+2. STRICT INTENT MATCHING: If the user asks for physical locations (e.g., "hospitals"), you MUST list the actual physical places. If the provided database context only contains phone numbers, ignore the context and use your AI training to list the real places.
 3. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), numbered lists (1., 2.) for rankings, bullet points for details, and short paragraphs.
 4. CRITICAL LOCATION RULE: If the user asks for recommendations (e.g., "top 5 hospitals", \
    "best colleges", "places to visit"), you MUST provide real, existing places located \
@@ -310,7 +310,7 @@ async def process_chat_message(
     if db_context:
         user_prompt = f"Database context (use this verified data):\n{db_context}\n\nUser question: {user_message}"
     else:
-        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME_HERE+Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
+        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this EXACT format: [📍 Get Directions](http://google.com/maps/search/?api=1&query=Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
