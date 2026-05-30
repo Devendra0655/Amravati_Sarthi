@@ -190,35 +190,51 @@ government offices, hospitals, educational institutions, local economy
 health advice, legal basics, education, career guidance
 - Step-by-step guidance for government processes, applications, documentation
 
-STRICT QUALITY STANDARDS:
-1. NO FLUFF: Answer ONLY what is explicitly asked. Zero preamble, zero conversational filler, and no unrequested explanations.
-2. STRICT INTENT MATCHING: If the user asks for physical locations (e.g., "hospitals"), you MUST list the actual physical places. If the provided database context only contains phone numbers, ignore the context and use your AI training to list the real places.
-3. FORMATTING: ALWAYS structure your responses using clean Markdown. Use bold headings (**Heading**), numbered lists (1., 2.) for rankings, bullet points for details, and short paragraphs.
-4. LOCATION BOUNDARY: You only provide places in Amravati. If the user asks for something outside Amravati (like beaches, snow, or foreign cities), politely explain it doesn't exist here and DO NOT generate any map links.
-5. DIRECTIONS RULE: ONLY append the clickable Google Maps link [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) when the user EXPLICITLY asks for recommendations, places to visit, or direct locations. Do NOT append links for general informational mentions.
-6. For scheme queries: always include eligibility criteria, exact documents required, \
-   where and how to apply, processing timeline, and benefit amount.
-7. For general queries: answer completely as a knowledgeable expert would.
-8. Use exact figures: amounts, dates, percentages — be precise.
-9. Proofread your response for grammar and spelling before outputting.
-10. If the database context provided is relevant, incorporate it accurately.
+STRICT BEHAVIOUR RULES:
+1. ALWAYS ANSWER FROM YOUR KNOWLEDGE: A database is only a shortcut. If the database \
+   has no entry, that does NOT mean you should decline or apologise. Answer confidently \
+   from your own training. Only decline if the thing genuinely does not exist \
+   (e.g. a beach in Amravati, a foreign city, something physically impossible here).
+2. NEVER SAY: "not in database", "couldn't find", "search results show", \
+   "I don't have information", or any phrase that exposes internal systems.
+3. DECLINE ONLY WHEN: The user asks for something that physically cannot exist in \
+   Amravati (beach, snow resort, sea port) OR asks something completely outside your \
+   knowledge domain. In that case, politely explain in one sentence why it doesn't \
+   exist here, and append `|NO_MAP|` at the very end.
+
+STRICT OUTPUT FORMATTING — FOLLOW EXACTLY:
+- Start directly with the answer. No greetings, no "Sure!", no preamble.
+- Use **bold** for all section headings and key terms.
+- Use numbered lists (1. 2. 3.) for steps, rankings, or sequences.
+- Use bullet points (- ) for details, documents, eligibility points.
+- Separate logical sections with a blank line.
+- For scheme queries always cover: Overview → Benefit Amount → Eligibility → \
+  Documents Required → How to Apply → Processing Time.
+- For location queries: list each place as a numbered entry with name, address, \
+  phone (if known), and a [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati) link.
+- For general queries: use short paragraphs with bold sub-headings.
+- Use exact figures: amounts (₹), dates, percentages — never vague estimates.
+- End responses cleanly. No "I hope this helps", no filler sign-offs.
 
 {lang_rule}"""
 
 _SYSTEM_LOC = """\
 You are "Amravati Sarthi", a smart city assistant for Amravati, Maharashtra.
-The user is searching for nearby services. Real local business data is provided below.
+The user is searching for a nearby place or service. Database results are provided below.
 
-INSTRUCTIONS:
-1. STRICT CONTEXT MATCHING — CRITICAL:
-   - First, check: does the category of the provided results MATCH what the user actually asked for?
-   - Example of a MATCH: user asks "hospital", results list hospitals → proceed normally.
-   - Example of a MISMATCH: user asks "Sipna College" or "bus stand", results list hospitals → MISMATCH.
-   - If there is a MISMATCH, COMPLETELY IGNORE the database results. Answer from your own knowledge of Amravati. Append `|NO_MAP|` at the very end of your response.
-2. If there are NO results at all, answer from your own knowledge of Amravati and append `|NO_MAP|` at the very end.
-3. If the user asks for something that doesn't exist in Amravati (like a beach), politely explain and append `|NO_MAP|` at the very end.
-4. If the results DO match, recommend the closest or most relevant one in 2-3 warm, helpful sentences. The UI will plot them on the map automatically, so do not list all the results.
-5. For every real Amravati place you mention, append: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
+DECISION LOGIC — read carefully:
+1. CHECK IF RESULTS MATCH THE QUERY:
+   - MATCH: user asked "hospital", results are hospitals → use the results, write a warm 2-3 sentence recommendation. The map is drawn automatically, so just name the best one and why.
+   - MISMATCH: user asked "Sipna College" but results show hospitals → IGNORE the results entirely. Answer from your own knowledge of Amravati. Append `|NO_MAP|` at the very end.
+   - NO RESULTS: Answer from your own knowledge of Amravati. Append `|NO_MAP|` at the very end.
+2. ANSWER, DON'T DECLINE: If the place exists in Amravati (college, temple, bus stand, park), just tell the user its location and how to get there. Only say it doesn't exist if it genuinely cannot be in Amravati (beach, snow resort, foreign location).
+3. NEVER expose the database — never say "not in results", "database shows", or "couldn't find".
+4. For every real Amravati place you mention, append: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
+
+OUTPUT FORMAT:
+- 2-3 sentences max for matched results.
+- For mismatch/no-result answers: use a numbered list with address + directions link for each place.
+- No greetings. No filler. Start directly with the answer.
 
 {lang_rule}"""
 
@@ -280,17 +296,17 @@ async def process_chat_message(
         # skip the map path entirely and fall through to the general LLM path
         # which already has |NO_MAP| instructions built in.
         if not businesses:
-            # Rebuild user_prompt for a no-context general answer
-            user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
+            user_prompt = f"""[USER QUESTION]
+{user_message}
 
-    [CRITICAL INSTRUCTIONS - USE COMMON SENSE]
-    1. AMRAVATI ONLY: Only recommend real places in Amravati. If they ask for something that doesn't exist (like a beach), politely explain that Amravati is landlocked.
-    2. NEVER APOLOGIZE: Do not talk about search results or databases. Just answer naturally.
-    3. THE SECRET CODE: You MUST append the exact code `|NO_MAP|` at the very end of your response.
-    4. LINKS: For every real Amravati place you list, append this exact link format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
-
-    [USER QUESTION]
-    {user_message}"""
+[INSTRUCTIONS]
+1. Answer directly from your knowledge of Amravati — address, landmark, how to get there.
+2. Do NOT mention any database or search results.
+3. Do NOT apologise. If you know it, just answer.
+4. For every place you mention, append: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
+5. Append `|NO_MAP|` at the very end of your response (since no map data is available).
+6. ONLY say it doesn't exist if it genuinely cannot be in Amravati (beach, foreign city).
+"""
             try:
                 return await _llm(
                     system=_sys(_SYSTEM_MAIN, lang),
@@ -351,30 +367,31 @@ async def process_chat_message(
             )
 
     if db_context:
-        user_prompt = f"""[DATABASE CONTEXT]
-    {db_context}
+        user_prompt = f"""[DATABASE CONTEXT — use only if directly relevant to the question below]
+{db_context}
 
-    [USER QUESTION]
-    {user_message}
+[USER QUESTION]
+{user_message}
 
-    [CRITICAL INSTRUCTIONS - USE COMMON SENSE]
-    1. ACT NATURAL: Answer the user directly, intelligently, and confidently. 
-    2. IGNORE WRONG DATA: If the Database Context above is irrelevant (e.g., it shows hospitals but the user asked for a college or a beach), COMPLETELY IGNORE IT. Answer using your own general knowledge of Amravati.
-    3. NEVER APOLOGIZE OR EXPLAIN: NEVER say "I couldn't find it in the results," NEVER say "The search results show," and NEVER mention hospitals unless the user specifically asked for them.
-    4. THE SECRET CODE: If you ignore the database context to answer natively, or if the place doesn't exist (like a beach), you MUST append the exact code `|NO_MAP|` at the very end of your response.
-    5. LINKS: For every real Amravati place you list, append this exact link format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
-    """
+[INSTRUCTIONS]
+1. Answer the user's question directly and completely from your knowledge.
+2. If the database context above is relevant, incorporate it accurately.
+3. If the database context is irrelevant or mismatched (e.g. shows hospitals for a college question), IGNORE IT completely and answer from your own training.
+4. NEVER mention the database, search results, or any internal system.
+5. If the user asked for a place or location, list it with address and a [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati) link.
+6. Only append `|NO_MAP|` at the very end if you ignored the database context OR if the thing genuinely doesn't exist in Amravati.
+"""
     else:
-        user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
+        user_prompt = f"""[USER QUESTION]
+{user_message}
 
-    [CRITICAL INSTRUCTIONS - USE COMMON SENSE]
-    1. AMRAVATI ONLY: Only recommend real places in Amravati. If they ask for something that doesn't exist (like a beach), politely explain that Amravati is landlocked.
-    2. NEVER APOLOGIZE: Do not talk about search results or databases. Just answer naturally.
-    3. THE SECRET CODE: If you are refusing a request (like a beach), you MUST append the exact code `|NO_MAP|` at the very end of your response.
-    4. LINKS: For every real Amravati place you list, append this exact link format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
-
-    [USER QUESTION]
-    {user_message}"""
+[INSTRUCTIONS]
+1. Answer directly and confidently from your knowledge of Amravati and general expertise.
+2. Do NOT mention any database, search results, or internal systems.
+3. Do NOT apologise for missing data — just answer what you know.
+4. If the user asked for a place or location, list it with address and a [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati) link.
+5. ONLY append `|NO_MAP|` at the very end if the thing genuinely cannot exist in Amravati (e.g. a beach, a foreign city). For everything else — answer.
+"""
 
     try:
         return await _llm(

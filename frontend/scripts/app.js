@@ -326,7 +326,11 @@ const UIController = (() => {
     html = html.replace(/^#{1,6}\s+(.*)/gm, "<strong style='font-size:1.15em; color:var(--cyan);'>$1</strong>"); // Colored Headings
     html = html.replace(/^\s*[-*•]\s+/gm, "&nbsp;&nbsp;• "); // Indent bullets
     html = html.replace(/^\s*(\d+\.)\s+/gm, "&nbsp;&nbsp;$1 "); // Indent numbers
-    html = html.replace(/\n{3,}/g, "\n\n"); // Fix excessive gaps
+    html = html.replace(/\n{3,}/g, "\n\n"); // Collapse 3+ blank lines to 2
+
+    // Convert newlines to <br> so structured output renders correctly in the bubble
+    html = html.replace(/\n/g, "<br>");
+
     return html.trim();
   };
 
