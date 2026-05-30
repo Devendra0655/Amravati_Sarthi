@@ -313,12 +313,14 @@ async def process_chat_message(
 
     CRITICAL OVERRIDE: If the user explicitly asks for physical buildings (e.g., hospitals) but the context above ONLY contains phone numbers, ignore the context. List real physical places in Amravati. ONLY append the link format [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) if they specifically ask for directions or recommendations. If they ask for something not in Amravati, politely refuse WITHOUT adding links. Otherwise, answer normally based ONLY on the database context. NO FLUFF."""
     else:
-        user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
-    1. LOCATION BOUNDARY: You only provide places in Amravati. If the user asks for something outside Amravati (like a beach or another city), politely explain it doesn't exist here and DO NOT generate any map links.
-    2. DIRECTIONS RULE: ONLY append the map link [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) when the user specifically asks for recommendations, places to visit, or directions.
-    3. FORMATTING: Use Markdown numbered lists, bullet points, and bold text. NO FLUFF.
+        user_prompt = f"""
+        The requested place might not be in the local database. You MUST answer based on your general AI training.
+        1. AMRAVATI ONLY: If the requested place exists in Amravati (e.g., Sipna College, PRMITR), you MUST provide details and append this exact clickable Markdown link: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query={user_message.replace(' ', '+')}+Amravati)
+        2. BOUNDARY REFUSAL: If the user asks for something that does NOT exist in Amravati (e.g., beaches, ocean, snow), politely explain that Amravati is a landlocked district. You MUST NOT generate any map links or location pins for these refusals.
+        3. NO FLUFF: Answer directly and concisely.
 
-    User question: {user_message}"""
+        User question: {user_message}
+        """
 
     try:
         return await _llm(

@@ -564,15 +564,34 @@ const UIController = (() => {
     el.input.value = "";
     el.input.style.height = "auto";
   };
-
+  
   /* ── Incoming ─────────────────────────────────────────── */
   const handleMessage = (data) => {
     removeTyping();
     if (data.startsWith("LOCATIONS:")) {
       const sep = data.indexOf("||");
       try {
-        appendLocationRow(JSON.parse(data.slice("LOCATIONS:".length, sep)), data.slice(sep + 2));
-      } catch { appendMessage(data, "bot"); }
+        const locationsJson = JSON.parse(data.slice("LOCATIONS:".length, sep));
+        const aiText = data.slice(sep + 2);
+
+        // NEW: The "Kill Switch"
+        // If the AI text indicates a failure to find the place or a refusal,
+        // abort the map render and just show the text message.
+        const textLower = aiText.toLowerCase();
+        const isRefusal = textLower.includes("couldn't find") ||
+                          textLower.includes("no matching results") ||
+                          textLower.includes("no beaches") ||
+                          textLower.includes("does not exist") ||
+                          textLower.includes("landlocked");
+
+        if (isRefusal) {
+          appendMessage(aiText, "bot"); // Downgrade to standard text row
+        } else {
+          appendLocationRow(locationsJson, aiText); // Draw the map normally
+        }
+      } catch {
+        appendMessage(data, "bot");
+      }
     } else {
       appendMessage(data, "bot");
     }
