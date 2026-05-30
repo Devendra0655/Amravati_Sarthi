@@ -168,14 +168,17 @@ const VoiceService = (() => {
 
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-
-    // Clean markdown before speaking
+    
+    // Aggressively clean text before speaking so it only reads the actual answers
     const clean = text
-      .replace(/[\u{1F300}-\u{1FFFF}]/gu, "")
-      .replace(/\*+/g, "")
-      .replace(/#{1,6}\s/g, "")
-      .replace(/`+/g, "")
+      .replace(/\[📍 Get Directions\]\(.*?\)/g, "") // Instantly delete map links from audio
+      .replace(/https?:\/\/[^\s]+/g, "") // Catch and delete any other raw URLs
+      .replace(/[\u{1F300}-\u{1FFFF}]/gu, "") // Remove emojis
+      .replace(/\*+/g, "") // Remove bold asterisks
+      .replace(/#{1,6}\s/g, "") // Remove heading hashes
+      .replace(/`+/g, "") // Remove code blocks
       .trim();
+
     if (!clean) return;
 
     const lang  = LangService.get();
@@ -312,6 +315,10 @@ const UIController = (() => {
 
   const cleanMarkdown = (text) => {
     let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Security
+
+    // NEW: Convert Markdown links to clickable HTML links that open in a new tab
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<a href='$2' target='_blank' style='color:var(--cyan); text-decoration:underline;'>$1</a>");
+
     html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); // Bold text
     html = html.replace(/^#{1,6}\s+(.*)/gm, "<strong style='font-size:1.15em; color:var(--cyan);'>$1</strong>"); // Colored Headings
     html = html.replace(/^\s*[-*•]\s+/gm, "&nbsp;&nbsp;• "); // Indent bullets

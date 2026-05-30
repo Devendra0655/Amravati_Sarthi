@@ -189,7 +189,7 @@ STRICT QUALITY STANDARDS:
 4. CRITICAL LOCATION RULE: If the user asks for recommendations (e.g., "top 5 hospitals", \
    "best colleges", "places to visit"), you MUST provide real, existing places located \
    STRICTLY in Amravati, Maharashtra. Never suggest places outside Amravati.
-5. DIRECTIONS RULE: For every specific place you recommend, you MUST append a clickable Google Maps link using this exact markdown format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Exact+Name+Of+Place,+Amravati)
+5. DIRECTIONS RULE: For every specific place you recommend, you MUST append a clickable Google Maps link using this exact markdown format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME_HERE+Amravati)
 6. For scheme queries: always include eligibility criteria, exact documents required, \
    where and how to apply, processing timeline, and benefit amount.
 7. For general queries: answer completely as a knowledgeable expert would.
@@ -310,7 +310,7 @@ async def process_chat_message(
     if db_context:
         user_prompt = f"Database context (use this verified data):\n{db_context}\n\nUser question: {user_message}"
     else:
-        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a Google Maps link: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name,+Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
+        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME_HERE+Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
