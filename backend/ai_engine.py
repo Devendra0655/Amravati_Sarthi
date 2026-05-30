@@ -307,17 +307,16 @@ async def process_chat_message(
                 for s in schemes
             )
 
-        # Defensive Prompt Construction to prevent Vector DB hijacking
-            if db_context:
-                user_prompt = f"""Database context (use this verified data):
-            {db_context}
+    if db_context:
+        user_prompt = f"""Database context (use this verified data):
+    {db_context}
 
-            User question: {user_message}
+    User question: {user_message}
 
-            CRITICAL OVERRIDE: If the user's question explicitly asks for physical buildings (e.g., hospitals, colleges) but the Database Context above only contains helplines/phone numbers, IGNORE the context. Instead, use your training to list real physical places in Amravati and append this exact link format: [📍 Get Directions](https://www.google.com/maps/search/Amravati)
-            Otherwise, answer normally based ONLY on the database context. NO FLUFF."""
-            else:
-                user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this EXACT format: [📍 Get Directions](https://www.google.com/maps/search/Amravati). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
+    CRITICAL OVERRIDE: If the user explicitly asks for physical buildings (e.g., hospitals, colleges) but the context above ONLY contains phone numbers, ignore the context. Instead, list real physical places in Amravati and append this link format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME)
+    Otherwise, answer normally based ONLY on the database context. NO FLUFF."""
+    else:
+        user_prompt = f"The requested data is not in the local database. Answer based on your AI training. CRITICAL LOCATION RULE: List real places ONLY in Amravati, Maharashtra. For every place, append a working Google Maps link using this EXACT format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME). Structure the answer heavily with Markdown numbered lists, bullet points, and bold text. NO FLUFF.\n\nUser question: {user_message}"
 
     try:
         return await _llm(
