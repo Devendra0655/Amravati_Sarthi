@@ -564,7 +564,7 @@ const UIController = (() => {
     el.input.value = "";
     el.input.style.height = "auto";
   };
-  
+
   /* ── Incoming ─────────────────────────────────────────── */
   const handleMessage = (data) => {
     removeTyping();
@@ -572,20 +572,21 @@ const UIController = (() => {
       const sep = data.indexOf("||");
       try {
         const locationsJson = JSON.parse(data.slice("LOCATIONS:".length, sep));
-        const aiText = data.slice(sep + 2);
 
-        // NEW: The "Kill Switch"
-        // If the AI text indicates a failure to find the place or a refusal,
-        // abort the map render and just show the text message.
+      // CHANGE 1: Use 'let' instead of 'const' so we can erase the secret code
+        let aiText = data.slice(sep + 2);
+
         const textLower = aiText.toLowerCase();
-        const isRefusal = textLower.includes("couldn't find") ||
-                          textLower.includes("no matching results") ||
-                          textLower.includes("no beaches") ||
-                          textLower.includes("does not exist") ||
-                          textLower.includes("landlocked");
+
+      // CHANGE 2: The Silent Kill-Switch
+        const isRefusal = textLower.includes("|no_map|") ||
+                        textLower.includes("landlocked");
+
+      // CHANGE 3: Erase the secret code so the judges NEVER see it in the chat UI
+        aiText = aiText.replace(/\|NO_MAP\|/gi, "").trim();
 
         if (isRefusal) {
-          appendMessage(aiText, "bot"); // Downgrade to standard text row
+          appendMessage(aiText, "bot"); // Downgrade to standard text row (NO MAP)
         } else {
           appendLocationRow(locationsJson, aiText); // Draw the map normally
         }
