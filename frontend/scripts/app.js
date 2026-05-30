@@ -171,6 +171,7 @@ const VoiceService = (() => {
 
     // Aggressively clean text before speaking so it only reads the actual answers
     const clean = text
+      .replace(/\|NO_MAP\|/gi, "")              // Fix 8: Strip kill-switch code before TTS reads it
       .replace(/\[📍 Get Directions\]\(.*?\)/g, "") // Instantly delete map links from audio
       .replace(/https?:\/\/[^\s]+/g, "") // Catch and delete any other raw URLs
       .replace(/[\u{1F300}-\u{1FFFF}]/gu, "") // Remove emojis
@@ -314,11 +315,12 @@ const UIController = (() => {
   const scrollEnd = () => { el.messages.scrollTop = el.messages.scrollHeight; };
 
   const cleanMarkdown = (text) => {
-    let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Security
+    // Fix 7: Escape HTML first, then process markdown — prevents XSS from AI-generated URLs
+    let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    // NEW: Convert Markdown links to clickable HTML links that open in a new tab
-    // NEW: Convert Markdown links to sleek, clickable UI buttons
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<a href='$2' target='_blank' style='display:inline-block; margin-left:6px; margin-top:4px; padding:4px 12px; background:rgba(0, 255, 255, 0.1); border:1px solid var(--cyan); border-radius:20px; color:var(--cyan); text-decoration:none; font-size:0.85em; font-weight:bold;'>$1 ↗</a>");
+    // Convert Markdown links to sleek, clickable UI buttons
+    // Uses already-escaped text so $2 (URL) cannot inject raw HTML
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<a href='$2' target='_blank' rel='noopener noreferrer' style='display:inline-block; margin-left:6px; margin-top:4px; padding:4px 12px; background:rgba(0, 255, 255, 0.1); border:1px solid var(--cyan); border-radius:20px; color:var(--cyan); text-decoration:none; font-size:0.85em; font-weight:bold;'>$1 ↗</a>");
 
     html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); // Bold text
     html = html.replace(/^#{1,6}\s+(.*)/gm, "<strong style='font-size:1.15em; color:var(--cyan);'>$1</strong>"); // Colored Headings
@@ -362,7 +364,7 @@ const UIController = (() => {
   el.langBtn.addEventListener("click", () => {
     LangService.toggle();
     applyLang();
-    
+
     const hasChatHistory = el.messages.querySelectorAll('.msg-row.user').length > 0;
     if (!hasChatHistory) {
       el.messages.innerHTML = "";
@@ -573,16 +575,16 @@ const UIController = (() => {
       try {
         const locationsJson = JSON.parse(data.slice("LOCATIONS:".length, sep));
 
-      // CHANGE 1: Use 'let' instead of 'const' so we can erase the secret code
+        // CHANGE 1: Use 'let' instead of 'const' so we can erase the secret code
         let aiText = data.slice(sep + 2);
 
         const textLower = aiText.toLowerCase();
 
-      // CHANGE 2: The Silent Kill-Switch
+        // CHANGE 2: The Silent Kill-Switch
         const isRefusal = textLower.includes("|no_map|") ||
                         textLower.includes("landlocked");
 
-      // CHANGE 3: Erase the secret code so the judges NEVER see it in the chat UI
+        // CHANGE 3: Erase the secret code so the judges NEVER see it in the chat UI
         aiText = aiText.replace(/\|NO_MAP\|/gi, "").trim();
 
         if (isRefusal) {
@@ -594,7 +596,10 @@ const UIController = (() => {
         appendMessage(data, "bot");
       }
     } else {
-      appendMessage(data, "bot");
+      // Fix 6: Strip |NO_MAP| from plain general/scheme responses too,
+      // in case the LLM appended it on the non-LOCATIONS path.
+      const cleanData = data.replace(/\|NO_MAP\|/gi, "").trim();
+      appendMessage(cleanData, "bot");
     }
     el.sendBtn.disabled = false;
   };

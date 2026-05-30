@@ -48,6 +48,12 @@ _LOCATION_KW = [
     "where is", "find", "locate", "show me", "directions to",
     "hospital near", "pharmacy near", "restaurant near",
     "atm near", "bank near", "clinic near",
+    # Landmark / institution lookups (Fix 3)
+    "college", "कॉलेज", "university", "विद्यालय", "school", "शाळा",
+    "police station", "पोलीस स्टेशन", "post office", "पोस्ट ऑफिस",
+    "bus stand", "बस स्थानक", "railway station", "रेल्वे स्टेशन",
+    "garden", "park", "उद्यान", "temple", "मंदिर", "church", "mosque",
+    "how to reach", "how do i get to", "where can i find",
 ]
 
 _SCHEME_KW = [
@@ -135,7 +141,8 @@ _MOCK_RESTAURANT = [
 _MOCK_DEFAULT = _MOCK_HOSPITALS  # fallback for unknown categories
 
 def _get_mock_businesses(hint: str) -> list:
-    """Return mock data matching the category hint when DB is unavailable."""
+    """Return mock data matching the category hint when DB is unavailable.
+    Returns [] for unrecognised categories so the kill-switch can fire."""
     h = hint.lower()
     if any(k in h for k in ["hospital", "doctor", "रुग्णालय", "हॉस्पिटल"]):
         return _MOCK_HOSPITALS
@@ -145,7 +152,8 @@ def _get_mock_businesses(hint: str) -> list:
         return _MOCK_ATM
     if any(k in h for k in ["restaurant", "food", "जेवण", "रेस्टॉरंट"]):
         return _MOCK_RESTAURANT
-    return _MOCK_DEFAULT
+    # Fix 2: Unknown category — return empty so the general LLM path handles it
+    return []
 
 # ── System prompts ────────────────────────────────────────────────────────────
 _LANG_RULE = {
@@ -202,13 +210,15 @@ You are "Amravati Sarthi", a smart city assistant for Amravati, Maharashtra.
 The user is searching for nearby services. Real local business data is provided below.
 
 INSTRUCTIONS:
-1. If the user asks for a specific specialty (e.g., "heart hospital", "best restaurant", "children's doctor"): 
-   - Analyze the provided results and recommend the one that best matches their specific need based on its name or category.
-   - Briefly explain *why* you are recommending it (e.g., "Since you need a heart specialist, I recommend...").
-2. If it is a general request (e.g., "hospitals near me"):
-   - Simply recommend the closest one.
-3. Keep your response warm, helpful, and brief (2-3 sentences). 
-The UI will plot them on the map automatically, so do not list all the results.
+1. STRICT CONTEXT MATCHING — CRITICAL:
+   - First, check: does the category of the provided results MATCH what the user actually asked for?
+   - Example of a MATCH: user asks "hospital", results list hospitals → proceed normally.
+   - Example of a MISMATCH: user asks "Sipna College" or "bus stand", results list hospitals → MISMATCH.
+   - If there is a MISMATCH, COMPLETELY IGNORE the database results. Answer from your own knowledge of Amravati. Append `|NO_MAP|` at the very end of your response.
+2. If there are NO results at all, answer from your own knowledge of Amravati and append `|NO_MAP|` at the very end.
+3. If the user asks for something that doesn't exist in Amravati (like a beach), politely explain and append `|NO_MAP|` at the very end.
+4. If the results DO match, recommend the closest or most relevant one in 2-3 warm, helpful sentences. The UI will plot them on the map automatically, so do not list all the results.
+5. For every real Amravati place you mention, append: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
 
 {lang_rule}"""
 
@@ -262,9 +272,38 @@ async def process_chat_message(
         else:
             businesses = []
 
-        # If DB returned nothing (down or no results), use mock data
+        # If DB returned nothing, try mock data for known categories only
         if not businesses:
             businesses = _get_mock_businesses(hint)
+
+        # Fix 1: If still no businesses (unknown category / landmark query),
+        # skip the map path entirely and fall through to the general LLM path
+        # which already has |NO_MAP| instructions built in.
+        if not businesses:
+            # Rebuild user_prompt for a no-context general answer
+            user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
+
+    [CRITICAL INSTRUCTIONS - USE COMMON SENSE]
+    1. AMRAVATI ONLY: Only recommend real places in Amravati. If they ask for something that doesn't exist (like a beach), politely explain that Amravati is landlocked.
+    2. NEVER APOLOGIZE: Do not talk about search results or databases. Just answer naturally.
+    3. THE SECRET CODE: You MUST append the exact code `|NO_MAP|` at the very end of your response.
+    4. LINKS: For every real Amravati place you list, append this exact link format: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=Place+Name+Amravati)
+
+    [USER QUESTION]
+    {user_message}"""
+            try:
+                return await _llm(
+                    system=_sys(_SYSTEM_MAIN, lang),
+                    user=user_prompt,
+                    max_tokens=600,
+                )
+            except Exception as e:
+                print(f"❌  LLM call failed (location fallback): {e}")
+                return (
+                    "माफ करा, सध्या उत्तर देता येत नाही. कृपया पुन्हा प्रयत्न करा."
+                    if lang == "mr" else
+                    "Sorry, I couldn't process your request right now. Please try again."
+                )
 
         context = "\n\n".join(
             f"Name: {b['name']}\nCategory: {b['category']}\n"
@@ -278,7 +317,7 @@ async def process_chat_message(
             summary = await _llm(
                 system=_sys(_SYSTEM_LOC, lang),
                 user=f"User asked: {user_message}\n\nNearby results ({len(businesses)} found):\n{context}",
-                max_tokens=160,
+                max_tokens=200,
             )
         except Exception as e:
             print(f"⚠️  LLM summary failed: {e}")
@@ -287,6 +326,12 @@ async def process_chat_message(
                 if lang == "mr" else
                 f"I found {len(businesses)} nearby results. The closest is {businesses[0]['name']}, {businesses[0]['distance_km']} km away."
             )
+
+        # Fix 5: If the LLM summary detected a mismatch and emitted |NO_MAP|,
+        # return a plain text response instead of a LOCATIONS: payload.
+        if "|NO_MAP|" in summary.upper():
+            clean_summary = summary.replace("|NO_MAP|", "").replace("|no_map|", "").strip()
+            return clean_summary  # plain text → frontend renders as normal message
 
         return f"LOCATIONS:{json.dumps(businesses, ensure_ascii=False)}||{summary}"
 
