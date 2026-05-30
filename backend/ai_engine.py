@@ -311,16 +311,19 @@ async def process_chat_message(
 
     User question: {user_message}
 
-    CRITICAL OVERRIDE: If the user explicitly asks for physical buildings (e.g., hospitals) but the context above ONLY contains phone numbers, ignore the context. List real physical places in Amravati. ONLY append the link format [📍 Get Directions](https://www.google.com/maps/search/?api=1&query=PLACE_NAME) if they specifically ask for directions or recommendations. If they ask for something not in Amravati, politely refuse WITHOUT adding links. Otherwise, answer normally based ONLY on the database context. NO FLUFF."""
+    CRITICAL INSTRUCTIONS:
+    1. INTENT MATCH: Answer exactly what the user asked based on their needs. 
+    2. AMRAVATI PLACES: If the user asks for a real place in Amravati (e.g., Sipna College, Ram Meghe, RIMS, Grecko), ignore irrelevant context. Give details and MUST use this map format: [📍 Get Directions](https://www.google.com/maps/search/[Place+Name+Amravati])
+    3. OUTSIDE/GENERAL: If the request is about a place NOT in Amravati, or general knowledge, answer the question helpfully, but DO NOT generate any map links.
+    4. NO FLUFF. NO PREAMBLE."""
     else:
-        user_prompt = f"""
-        The requested place might not be in the local database. You MUST answer based on your general AI training.
-        1. AMRAVATI ONLY: If the requested place exists in Amravati (e.g., Sipna College, PRMITR), you MUST provide details and append this exact clickable Markdown link: [📍 Get Directions](https://www.google.com/maps/search/?api=1&query={user_message.replace(' ', '+')}+Amravati)
-        2. BOUNDARY REFUSAL: If the user asks for something that does NOT exist in Amravati (e.g., beaches, ocean, snow), politely explain that Amravati is a landlocked district. You MUST NOT generate any map links or location pins for these refusals.
-        3. NO FLUFF: Answer directly and concisely.
+        user_prompt = f"""The requested data is not in the local database. Answer based on your AI training.
+    1. INTENT MATCH: Answer exactly what the user asked based on their needs.
+    2. AMRAVATI PLACES: If they ask for a place in Amravati (e.g., Ram Meghe, Grecko, RIMS), provide the info and MUST use this map format: [📍 Get Directions](https://www.google.com/maps/search/[Place+Name+Amravati])
+    3. OUTSIDE/GENERAL: If they ask for something NOT in Amravati (like a beach, another city), or a general question, answer them helpfully but DO NOT generate any map links.
+    4. FORMATTING: Use Markdown numbered lists, bullet points, and bold text. NO FLUFF.
 
-        User question: {user_message}
-        """
+    User question: {user_message}"""
 
     try:
         return await _llm(
